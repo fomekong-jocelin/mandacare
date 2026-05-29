@@ -11,6 +11,8 @@ import '../../auth/domain/auth_session.dart';
 import '../data/patient_gateway.dart';
 import '../domain/patient_summary.dart';
 import '../domain/patient_timeline_item.dart';
+import '../../consultations/presentation/vitals_form_screen.dart';
+import '../../consultations/presentation/consultation_form_screen.dart';
 import 'patient_visit_form_screen.dart';
 import 'widgets/patient_status_badge.dart';
 
@@ -349,6 +351,79 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  PatientStatus get _currentStatus {
+    if (_timeline.isNotEmpty) {
+      return _timeline.first.status;
+    }
+    return widget.patient.status;
+  }
+
+  Future<void> _openVitalsForm() async {
+    if (_timeline.isEmpty) return;
+    final latestItem = _timeline.first;
+    final visitId = latestItem.visitId;
+
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => VitalsFormScreen(
+          session: widget.session,
+          patientGateway: widget.patientGateway,
+          patient: widget.patient,
+          visitId: visitId,
+        ),
+      ),
+    );
+    if (saved == true && mounted) {
+      _loadTimeline();
+    }
+  }
+
+  Future<void> _openConsultationForm() async {
+    if (_timeline.isEmpty) return;
+    final latestItem = _timeline.first;
+    final visitId = latestItem.visitId;
+
+    setState(() => _loading = true);
+    try {
+      final vitals = await widget.patientGateway.getLatestVitals(
+        session: widget.session,
+        visitId: visitId,
+      );
+
+      // Transition status to inConsultation if the status is currently waiting
+      if (_currentStatus == PatientStatus.waiting) {
+        await widget.patientGateway.changeVisitStatus(
+          session: widget.session,
+          visitId: visitId,
+          status: PatientStatus.inConsultation,
+        );
+      }
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      final completed = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (_) => ConsultationFormScreen(
+            session: widget.session,
+            patientGateway: widget.patientGateway,
+            patient: widget.patient,
+            visitId: visitId,
+            vitals: vitals,
+          ),
+        ),
+      );
+      if (completed == true && mounted) {
+        _loadTimeline();
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _showMessage('Impossible de charger les constantes de consultation.');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -372,8 +447,16 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                 children: [
-                  _PatientProfileCard(patient: widget.patient),
-                  const SizedBox(height: 12),
+                  _PatientProfileCard(
+                    patient: widget.patient,
+                    status: _currentStatus,
+                  ),
+                  const SizedBox(height: 14),
+                  _PatientWorkflowStepper(
+                    status: _currentStatus,
+                    hasVitals: _timeline.isNotEmpty && _timeline.first.vitals != null,
+                  ),
+                  const SizedBox(height: 14),
                   MetricStrip(
                     items: [
                       MetricStripItem(
@@ -401,12 +484,49 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   const SizedBox(height: 18),
                   _SectionTitle(title: 'Actions patient'),
                   const SizedBox(height: 10),
-                  ActionTile(
-                    icon: Icons.add_box_rounded,
-                    title: 'Nouvelle visite',
-                    subtitle: 'Démarrer une consultation',
-                    onTap: _openVisitForm,
-                  ),
+                  (() {
+                    final hasActiveVisit = _timeline.isNotEmpty && 
+                        _timeline.first.status != PatientStatus.released &&
+                        _timeline.first.arrivalAt.year == DateTime.now().year &&
+                        _timeline.first.arrivalAt.month == DateTime.now().month &&
+                        _timeline.first.arrivalAt.day == DateTime.now().day;
+
+                    if (hasActiveVisit) {
+                      final latestVisit = _timeline.first;
+                      final needsVitals = latestVisit.vitals == null;
+                      final inConsult = latestVisit.status == PatientStatus.inConsultation;
+
+                      if (needsVitals) {
+                        return ActionTile(
+                          icon: Icons.monitor_heart_rounded,
+                          title: 'Saisir les constantes',
+                          subtitle: 'Tension, pouls, température (Étape 2)',
+                          onTap: _openVitalsForm,
+                        );
+                      } else if (!inConsult) {
+                        return ActionTile(
+                          icon: Icons.play_arrow_rounded,
+                          title: 'Démarrer la consultation',
+                          subtitle: 'Fiche d\'observation & diagnostic (Étape 3)',
+                          onTap: _openConsultationForm,
+                        );
+                      } else {
+                        return ActionTile(
+                          icon: Icons.assignment_rounded,
+                          title: 'Rédiger la consultation',
+                          subtitle: 'Saisir le rapport et l\'ordonnance (Étape 3)',
+                          onTap: _openConsultationForm,
+                        );
+                      }
+                    }
+
+                    return ActionTile(
+                      icon: Icons.add_box_rounded,
+                      title: 'Nouvelle visite',
+                      subtitle: 'Enregistrer une nouvelle visite (Étape 1)',
+                      onTap: _openVisitForm,
+                    );
+                  })(),
                   const SizedBox(height: 10),
                   (() {
                     final latestConsult = _latestConsultationWithPrescription;
@@ -570,9 +690,10 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
 }
 
 class _PatientProfileCard extends StatelessWidget {
-  const _PatientProfileCard({required this.patient});
+  const _PatientProfileCard({required this.patient, required this.status});
 
   final PatientSummary patient;
+  final PatientStatus status;
 
   @override
   Widget build(BuildContext context) {
@@ -631,11 +752,178 @@ class _PatientProfileCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          PatientStatusBadge(status: patient.status),
+          PatientStatusBadge(status: status),
         ],
       ),
     );
   }
+}
+
+class _PatientWorkflowStepper extends StatelessWidget {
+  const _PatientWorkflowStepper({
+    required this.status,
+    required this.hasVitals,
+  });
+
+  final PatientStatus status;
+  final bool hasVitals;
+
+  int get currentStep {
+    if (status == PatientStatus.released) return 4;
+    if (status == PatientStatus.lab) return 3;
+    if (status == PatientStatus.inConsultation) return 2;
+    if (status == PatientStatus.waiting) {
+      return hasVitals ? 2 : 1; // If vitals taken, next step is consultation. Else, next step is vitals.
+    }
+    return 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = [
+      _StepInfo('Visite', Icons.login_rounded),
+      _StepInfo('Constantes', Icons.monitor_heart_rounded),
+      _StepInfo('Consultation', Icons.medical_services_rounded),
+      _StepInfo('Labo / Caisse', Icons.science_rounded),
+      _StepInfo('Sortie', Icons.check_circle_rounded),
+    ];
+
+    final activeIndex = currentStep;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 8, bottom: 10),
+            child: Text(
+              'Étape actuelle du parcours patient',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.bold,
+                color: AppColors.deepHealthBlue,
+              ),
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(steps.length, (index) {
+              final step = steps[index];
+              final isCompleted = index < activeIndex;
+              final isActive = index == activeIndex;
+
+              Color stepColor;
+              if (isCompleted) {
+                stepColor = AppColors.medicalGreen;
+              } else if (isActive) {
+                stepColor = AppColors.deepHealthBlue;
+              } else {
+                stepColor = Colors.grey[300]!;
+              }
+
+              return Expanded(
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        // Left connecting line
+                        Expanded(
+                          child: Container(
+                            height: 2,
+                            color: index == 0
+                                ? Colors.transparent
+                                : (index <= activeIndex
+                                    ? AppColors.medicalGreen
+                                    : Colors.grey[200]),
+                          ),
+                        ),
+                        // Circle Indicator
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? Colors.white
+                                : (isCompleted
+                                    ? AppColors.medicalGreen
+                                    : Colors.grey[50]),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: stepColor,
+                              width: isActive ? 2.5 : 1.5,
+                            ),
+                            boxShadow: isActive
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.deepHealthBlue.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
+                          ),
+                          child: Icon(
+                            isCompleted ? Icons.check_rounded : step.icon,
+                            size: 14,
+                            color: isCompleted
+                                ? Colors.white
+                                : (isActive
+                                    ? AppColors.deepHealthBlue
+                                    : Colors.grey[400]),
+                          ),
+                        ),
+                        // Right connecting line
+                        Expanded(
+                          child: Container(
+                            height: 2,
+                            color: index == steps.length - 1
+                                ? Colors.transparent
+                                : (index < activeIndex
+                                    ? AppColors.medicalGreen
+                                    : Colors.grey[200]),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      step.title,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight:
+                            isActive ? FontWeight.bold : FontWeight.normal,
+                        color: isActive
+                            ? AppColors.deepHealthBlue
+                            : (isCompleted
+                                ? AppColors.textPrimary
+                                : Colors.grey[500]),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepInfo {
+  const _StepInfo(this.title, this.icon);
+  final String title;
+  final IconData icon;
 }
 
 class _ClinicalSummary extends StatelessWidget {
