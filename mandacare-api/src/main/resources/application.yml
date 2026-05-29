@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: mandacare-api
+  datasource:
+    url: ${MANDACARE_DB_URL:jdbc:postgresql://localhost:5432/mandacare}
+    username: ${MANDACARE_DB_USERNAME:postgres}
+    password: ${MANDACARE_DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  port: ${MANDACARE_API_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+mandacare:
+  auth:
+    token-secret: ${MANDACARE_AUTH_TOKEN_SECRET:mandacare-local-development-token-secret-change-me}
+    token-ttl: ${MANDACARE_AUTH_TOKEN_TTL:12h}
+    default-admin:
+      enabled: ${MANDACARE_DEFAULT_ADMIN_ENABLED:true}
+      username: ${MANDACARE_DEFAULT_ADMIN_USERNAME:admin}
+      password: ${MANDACARE_DEFAULT_ADMIN_PASSWORD:admin123}
+      first-name: ${MANDACARE_DEFAULT_ADMIN_FIRST_NAME:Dr}
+      last-name: ${MANDACARE_DEFAULT_ADMIN_LAST_NAME:Manda}
+  center:
+    name: Cabinet de Soins Manda Nsappe
+    slogan: Soigner mieux, gérer simplement.
+    city: Logbessou

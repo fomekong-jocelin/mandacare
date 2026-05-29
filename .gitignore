@@ -1,0 +1,77 @@
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+*.ipr
+*.iws
+
+# System Files
+Thumbs.db
+db.db
+Desktop.ini
+.DS_Store
+.DS_Store?
+._*
+
+# Log files
+*.log
+logs/
+
+# Build and Temp folders (Global)
+build/
+bin/
+target/
+out/
+tmp/
+temp/
+.gradle/
+
+# Java / Maven / Gradle
+.metadata/
+.recommenders/
+.classpath
+.project
+.settings/
+.springBeans
+.factorypath
+application.properties.local
+application.yml.local
+gradle-app.setting
+.gradletasknamecache
+/mandacare-api/target/
+/mandacare-api/.gradle/
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+/mandacare-mobile/build/
+/mandacare-mobile/.dart_tool/
+/mandacare-mobile/.packages
+/mandacare-mobile/.flutter-plugins
+/mandacare-mobile/.flutter-plugins-dependencies
+/mandacare-mobile/android/.gradle/
+/mandacare-mobile/android/app/build/
+/mandacare-mobile/ios/Flutter/Flutter.podspec
+/mandacare-mobile/ios/Flutter/Generated.xcconfig
+/mandacare-mobile/ios/Flutter/flutter_export_environment.sh
+/mandacare-mobile/ios/Flutter/App.framework
+/mandacare-mobile/ios/Flutter/Flutter.framework
+/mandacare-mobile/ios/Flutter/Flutter.podspec
+/mandacare-mobile/ios/.symlinks/
+/mandacare-mobile/ios/Pods/
+/mandacare-mobile/build/
+/mandacare-mobile/.pub-cache/
+
+# Local/Environment Configuration
+.env
+.env.*
+*.local
+credentials.json
+
+# Tooling and CLI Cache
+.antigravitycli/
+.gemini/
