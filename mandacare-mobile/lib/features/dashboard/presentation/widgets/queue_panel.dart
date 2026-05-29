@@ -145,12 +145,23 @@ class _QueueLine extends StatelessWidget {
                       height: 1.12,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${patient.reason} • ${patient.lastVisit}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      StatusChip(
+                        label: patient.status.label,
+                        color: _statusColor(patient.status),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${patient.reason} • ${patient.lastVisit}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -159,10 +170,6 @@ class _QueueLine extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                StatusChip(
-                  label: patient.status.label,
-                  color: _statusColor(patient.status),
-                ),
                 IconButton(
                   key: ValueKey(
                     'vitals-action-${patient.latestVisitId ?? patient.fullName}',
