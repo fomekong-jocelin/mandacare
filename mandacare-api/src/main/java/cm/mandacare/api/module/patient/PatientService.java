@@ -137,7 +137,6 @@ class PatientService {
             ConsultationResponse consultationResponse = consultationRepository.findByVisitId(visit.id())
                     .map(consultation -> consultationMapper.toResponse(
                             consultation,
-                            getDecisionFromStatus(visit.status()),
                             visit.status()
                     ))
                     .orElse(null);
@@ -156,11 +155,4 @@ class PatientService {
         }).toList();
     }
 
-    private ConsultationDecision getDecisionFromStatus(VisitStatus status) {
-        return switch (status) {
-            case LAB -> ConsultationDecision.SEND_TO_LAB;
-            case RELEASED -> ConsultationDecision.RELEASE_PATIENT;
-            default -> ConsultationDecision.KEEP_IN_CONSULTATION;
-        };
-    }
 }

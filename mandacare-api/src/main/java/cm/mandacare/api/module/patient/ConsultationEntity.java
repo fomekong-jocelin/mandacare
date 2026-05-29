@@ -51,6 +51,10 @@ class ConsultationEntity {
     @Column(nullable = false, length = 40)
     private ConsultationStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 40)
+    private ConsultationDecision decision;
+
     @Column(name = "validated_at")
     private Instant validatedAt;
 
@@ -75,6 +79,7 @@ class ConsultationEntity {
         consultation.advice = normalize(request.advice());
         consultation.confidentialNotes = normalize(request.confidentialNotes());
         consultation.status = request.getStatusOrDefault();
+        consultation.decision = request.decision();
         if (consultation.status == ConsultationStatus.VALIDATED) {
             consultation.validatedAt = Instant.now();
         }
@@ -91,6 +96,7 @@ class ConsultationEntity {
         this.advice = normalize(request.advice());
         this.confidentialNotes = normalize(request.confidentialNotes());
         this.status = nextStatus;
+        this.decision = request.decision();
         if (nextStatus == ConsultationStatus.VALIDATED) {
             this.validatedAt = Instant.now();
         }
@@ -102,6 +108,7 @@ class ConsultationEntity {
         this.finalDiagnosis = normalize(request.diagnosis());
         this.advice = normalize(request.advice());
         this.confidentialNotes = normalize(request.confidentialNotes());
+        this.decision = request.decision();
         this.status = ConsultationStatus.CORRECTED;
         this.updatedAt = Instant.now();
     }
@@ -171,6 +178,10 @@ class ConsultationEntity {
 
     ConsultationStatus status() {
         return status;
+    }
+
+    ConsultationDecision decision() {
+        return decision;
     }
 
     Instant validatedAt() {

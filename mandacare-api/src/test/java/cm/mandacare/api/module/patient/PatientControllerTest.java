@@ -77,7 +77,7 @@ class PatientControllerTest {
 
         mockMvc.perform(get("/api/v1/patients/queue/today")
                         .with(user("doctor"))
-                        .param("limit", "10"))
+                        .param("limit", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].fullName", hasItem("Queue Visible")))
                 .andExpect(jsonPath("$[*].latestVisit.status", hasItem("WAITING")));
@@ -234,13 +234,55 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitId").value(visitId))
                 .andExpect(jsonPath("$.diagnosis").value("Céphalées simples"))
                 .andExpect(jsonPath("$.decision").value("RELEASE_PATIENT"))
-                .andExpect(jsonPath("$.visitStatus").value("RELEASED"));
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(get("/api/v1/patients/{id}", patientId)
                         .with(user("doctor")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestVisit.id").value(visitId))
-                .andExpect(jsonPath("$.latestVisit.status").value("RELEASED"));
+                .andExpect(jsonPath("$.latestVisit.status").value("CASH_DESK"));
+
+        mockMvc.perform(get("/api/v1/patients/{id}/timeline", patientId)
+                        .with(user("doctor")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("CASH_DESK"))
+                .andExpect(jsonPath("$[0].consultation.decision").value("RELEASE_PATIENT"));
+    }
+
+    @Test
+    void keepsLabDecisionWhileVisitWaitsAtCashDesk() throws Exception {
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Lab", "Payment", "+221 70 000 00 66")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String patientId = JsonPath.read(patientBody, "$.id");
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Fièvre persistante",
+                                  "clinicalExam": "Patient fébrile",
+                                  "diagnosis": "Suspicion infection",
+                                  "advice": "Examens complémentaires",
+                                  "decision": "SEND_TO_LAB"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.decision").value("SEND_TO_LAB"))
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        mockMvc.perform(get("/api/v1/patients/{id}/timeline", patientId)
+                        .with(user("doctor")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("CASH_DESK"))
+                .andExpect(jsonPath("$[0].consultation.decision").value("SEND_TO_LAB"));
     }
 
     @Test

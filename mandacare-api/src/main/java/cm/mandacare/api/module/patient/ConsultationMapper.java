@@ -7,7 +7,6 @@ class ConsultationMapper {
 
     ConsultationResponse toResponse(
             ConsultationEntity consultation,
-            ConsultationDecision decision,
             VisitStatus visitStatus
     ) {
         return new ConsultationResponse(
@@ -20,7 +19,7 @@ class ConsultationMapper {
                 consultation.finalDiagnosis(),
                 consultation.advice(),
                 consultation.status(),
-                decision,
+                consultation.decision(),
                 visitStatus,
                 consultation.validatedAt(),
                 consultation.createdAt()

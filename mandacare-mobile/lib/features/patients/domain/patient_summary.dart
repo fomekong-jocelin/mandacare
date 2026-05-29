@@ -1,6 +1,7 @@
 enum PatientStatus {
   waiting('En attente'),
   inConsultation('Consultation'),
+  cashDesk('Caisse'),
   lab('Labo'),
   released('Sorti');
 

@@ -75,7 +75,7 @@ class ConsultationService {
             visit.markReadyForConsultation();
         }
 
-        return mapper.toResponse(consultation, request.decision(), visit.status());
+        return mapper.toResponse(consultation, visit.status());
     }
 
     private void validateFieldsForValidation(CreateConsultationRequest request) {

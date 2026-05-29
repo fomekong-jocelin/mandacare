@@ -7,4 +7,11 @@ enum ConsultationDecision {
 
   final String label;
   final String apiValue;
+
+  static ConsultationDecision fromApiValue(Object? value) {
+    return ConsultationDecision.values.firstWhere(
+      (decision) => decision.apiValue == value,
+      orElse: () => ConsultationDecision.keepInConsultation,
+    );
+  }
 }

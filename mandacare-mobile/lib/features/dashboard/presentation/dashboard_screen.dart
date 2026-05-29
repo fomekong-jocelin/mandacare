@@ -3,11 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/layout/adaptive_layout.dart';
 import '../../auth/domain/auth_session.dart';
-import '../../consultations/presentation/vitals_form_screen.dart';
-import '../../consultations/presentation/consultation_form_screen.dart';
 import '../../patients/data/patient_gateway.dart';
 import '../../patients/domain/patient_summary.dart';
-import '../../patients/domain/vitals_summary.dart';
 import '../../patients/presentation/patient_filter.dart';
 import '../../patients/presentation/patient_form_screen.dart';
 import '../../patients/presentation/patient_detail_screen.dart';
@@ -24,11 +21,13 @@ class DashboardScreen extends StatefulWidget {
     required this.onOpenConsultations,
     required this.onOpenCashDesk,
     super.key,
+    this.refreshRequestId = 0,
     this.connectedUserName = 'Dr Manda',
   });
 
   final AuthSession session;
   final PatientGateway patientGateway;
+  final int refreshRequestId;
   final ValueChanged<PatientFilter> onOpenPatients;
   final VoidCallback onOpenConsultations;
   final VoidCallback onOpenCashDesk;
@@ -50,6 +49,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshRequestId != oldWidget.refreshRequestId) {
+      _loadQueue(showLoader: false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: LayoutBuilder(
@@ -62,54 +69,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 connectedUserName: widget.connectedUserName,
               ),
               Expanded(
-                child: CustomScrollView(
-                  slivers: [
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                      sliver: SliverList.list(
-                        children: [
-                          TodayStatusGrid(isTablet: isTablet),
-                          const SizedBox(height: 16),
-                          const SectionHeader(
-                            title: 'Accès rapide',
-                            actionLabel: 'Tout voir',
-                          ),
-                          const SizedBox(height: 10),
-                          QuickActionsGrid(
-                            isTablet: isTablet,
-                            onCreatePatient: _openCreatePatient,
-                            onOpenPatients: widget.onOpenPatients,
-                            onOpenConsultations: widget.onOpenConsultations,
-                            onOpenCashDesk: widget.onOpenCashDesk,
-                          ),
-                          const SizedBox(height: 16),
-                          SectionHeader(
-                            title: "File d'attente",
-                            actionLabel: 'Voir tout',
-                            onActionPressed: () {
-                              widget.onOpenPatients(PatientFilter.waiting);
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          QueuePanel(
-                            patients: _queue,
-                            loading: _loadingQueue,
-                            error: _queueError,
-                            onRetry: _loadQueue,
-                            onStatusChanged: _changeVisitStatus,
-                            onVitalsPressed: _openVitalsForm,
-                            onConsultationPressed: _openConsultationForm,
-                            onPatientTap: _openPatientDetail,
-                          ),
-                          SizedBox(
-                            height: AdaptiveLayout.bottomContentPadding(
-                              context,
+                child: RefreshIndicator(
+                  onRefresh: () => _loadQueue(showLoader: false),
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                        sliver: SliverList.list(
+                          children: [
+                            TodayStatusGrid(isTablet: isTablet),
+                            const SizedBox(height: 16),
+                            const SectionHeader(
+                              title: 'Accès rapide',
+                              actionLabel: 'Tout voir',
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 10),
+                            QuickActionsGrid(
+                              isTablet: isTablet,
+                              onCreatePatient: _openCreatePatient,
+                              onOpenPatients: widget.onOpenPatients,
+                              onOpenConsultations: widget.onOpenConsultations,
+                              onOpenCashDesk: widget.onOpenCashDesk,
+                            ),
+                            const SizedBox(height: 16),
+                            SectionHeader(
+                              title: "File d'attente",
+                              actionLabel: 'Voir tout',
+                              onActionPressed: () {
+                                widget.onOpenPatients(PatientFilter.waiting);
+                              },
+                            ),
+                            const SizedBox(height: 10),
+                            QueuePanel(
+                              patients: _queue,
+                              loading: _loadingQueue,
+                              error: _queueError,
+                              onRetry: _loadQueue,
+                              onPatientTap: _openPatientDetail,
+                            ),
+                            SizedBox(
+                              height: AdaptiveLayout.bottomContentPadding(
+                                context,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -119,11 +127,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Future<void> _loadQueue() async {
-    setState(() {
-      _loadingQueue = true;
-      _queueError = null;
-    });
+  Future<void> _loadQueue({
+    bool showLoader = true,
+    PatientSummary? ensureVisible,
+  }) async {
+    if (showLoader) {
+      setState(() {
+        _loadingQueue = true;
+        _queueError = null;
+      });
+    }
 
     try {
       final queue = await widget.patientGateway.listTodayQueue(
@@ -133,7 +146,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return;
       }
       setState(() {
-        _queue = queue;
+        _queue = ensureVisible == null
+            ? queue
+            : _mergeQueuePatient(queue, ensureVisible);
         _loadingQueue = false;
       });
     } catch (_) {
@@ -148,64 +163,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _openCreatePatient() async {
-    final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
+    final patient = await Navigator.of(context).push<PatientSummary?>(
+      MaterialPageRoute<PatientSummary?>(
         builder: (_) => PatientFormScreen(
           session: widget.session,
           patientGateway: widget.patientGateway,
         ),
       ),
     );
-    if (created == true) {
-      await _loadQueue();
+    if (patient != null) {
+      _showPatientInQueue(patient);
+      await _loadQueue(showLoader: false, ensureVisible: patient);
+      if (mounted) {
+        _openPatientDetail(patient);
+      }
     }
   }
 
-  Future<void> _changeVisitStatus(
+  void _showPatientInQueue(PatientSummary patient) {
+    if (!mounted || patient.status == PatientStatus.released) {
+      return;
+    }
+    setState(() {
+      _queue = _mergeQueuePatient(_queue, patient);
+      _loadingQueue = false;
+      _queueError = null;
+    });
+  }
+
+  List<PatientSummary> _mergeQueuePatient(
+    List<PatientSummary> queue,
     PatientSummary patient,
-    PatientStatus status,
-  ) async {
-    final visitId = patient.latestVisitId ?? await _refreshVisitIdFor(patient);
-    if (visitId == null) {
-      _showMessage('Visite non synchronisée avec le serveur.');
-      return;
-    }
-
-    try {
-      await widget.patientGateway.changeVisitStatus(
-        session: widget.session,
-        visitId: visitId,
-        status: status,
-      );
-      await _loadQueue();
-    } catch (_) {
-      _showMessage('Impossible de changer le statut de la visite.');
-    }
-  }
-
-  Future<void> _openVitalsForm(PatientSummary patient) async {
-    final visitId = patient.latestVisitId ?? await _refreshVisitIdFor(patient);
-    if (visitId == null) {
-      _showMessage('Visite non synchronisée avec le serveur.');
-      return;
-    }
-    if (!mounted) {
-      return;
-    }
-
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => VitalsFormScreen(
-          session: widget.session,
-          patientGateway: widget.patientGateway,
-          patient: patient,
-          visitId: visitId,
-        ),
-      ),
-    );
-    if (saved == true) {
-      await _loadQueue();
-    }
+  ) {
+    final patientId = patient.id;
+    final visitId = patient.latestVisitId;
+    final remaining = queue.where((queued) {
+      if (patientId != null && queued.id == patientId) {
+        return false;
+      }
+      return visitId == null || queued.latestVisitId != visitId;
+    });
+    return [patient, ...remaining].toList(growable: false);
   }
 
   void _openPatientDetail(PatientSummary patient) {
@@ -220,91 +218,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         )
         .then((_) => _loadQueue());
-  }
-
-  Future<void> _openConsultationForm(PatientSummary patient) async {
-    final visitId = patient.latestVisitId ?? await _refreshVisitIdFor(patient);
-    if (visitId == null) {
-      _showMessage('Visite non synchronisée avec le serveur.');
-      return;
-    }
-
-    setState(() => _loadingQueue = true);
-    VitalsSummary? vitals;
-    try {
-      vitals = await widget.patientGateway.getLatestVitals(
-        session: widget.session,
-        visitId: visitId,
-      );
-    } catch (_) {
-      // It's ok if there are no vitals
-    } finally {
-      if (mounted) {
-        setState(() => _loadingQueue = false);
-      }
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => ConsultationFormScreen(
-          session: widget.session,
-          patientGateway: widget.patientGateway,
-          patient: patient,
-          visitId: visitId,
-          vitals: vitals,
-        ),
-      ),
-    );
-    if (saved == true) {
-      await _loadQueue();
-    }
-  }
-
-  Future<String?> _refreshVisitIdFor(PatientSummary patient) async {
-    try {
-      final queue = await widget.patientGateway.listTodayQueue(
-        session: widget.session,
-      );
-      if (!mounted) {
-        return null;
-      }
-      setState(() {
-        _queue = queue;
-        _loadingQueue = false;
-        _queueError = null;
-      });
-      return _matchingPatient(queue, patient)?.latestVisitId;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  PatientSummary? _matchingPatient(
-    List<PatientSummary> queue,
-    PatientSummary selected,
-  ) {
-    for (final patient in queue) {
-      if (selected.id != null && patient.id == selected.id) {
-        return patient;
-      }
-      if (patient.fullName == selected.fullName) {
-        return patient;
-      }
-    }
-    return null;
-  }
-
-  void _showMessage(String message) {
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

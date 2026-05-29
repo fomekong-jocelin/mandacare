@@ -19,6 +19,7 @@ class PatientListScreen extends StatefulWidget {
     required this.patientGateway,
     this.requestedFilter = PatientFilter.all,
     this.filterRequestId = 0,
+    this.onQueueChanged,
     super.key,
   });
 
@@ -26,6 +27,7 @@ class PatientListScreen extends StatefulWidget {
   final PatientGateway patientGateway;
   final PatientFilter requestedFilter;
   final int filterRequestId;
+  final VoidCallback? onQueueChanged;
 
   @override
   State<PatientListScreen> createState() => _PatientListScreenState();
@@ -172,16 +174,20 @@ class _PatientListScreenState extends State<PatientListScreen> {
   }
 
   Future<void> _openCreatePatient() async {
-    final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
+    final patient = await Navigator.of(context).push<PatientSummary?>(
+      MaterialPageRoute<PatientSummary?>(
         builder: (_) => PatientFormScreen(
           session: widget.session,
           patientGateway: widget.patientGateway,
         ),
       ),
     );
-    if (created == true) {
+    if (patient != null) {
       await _loadPatients();
+      widget.onQueueChanged?.call();
+      if (mounted) {
+        _openPatientDetail(patient);
+      }
     }
   }
 
@@ -197,6 +203,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
     );
     if (changed == true) {
       await _loadPatients();
+      widget.onQueueChanged?.call();
     }
   }
 }

@@ -13,6 +13,7 @@ class PatientStatusBadge extends StatelessWidget {
     final color = switch (status) {
       PatientStatus.waiting => AppColors.warning,
       PatientStatus.inConsultation => AppColors.success,
+      PatientStatus.cashDesk => AppColors.premiumGold,
       PatientStatus.lab => AppColors.info,
       PatientStatus.released => AppColors.textSecondary,
     };

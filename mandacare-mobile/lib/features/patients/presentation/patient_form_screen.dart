@@ -223,7 +223,7 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
     }
     setState(() => _saving = true);
     try {
-      await widget.patientGateway.createPatient(
+      final patient = await widget.patientGateway.createPatient(
         session: widget.session,
         payload: _payload(),
       );
@@ -233,7 +233,7 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Patient enregistré en base')),
       );
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(patient);
     } on ApiException catch (exception) {
       _showError(exception.message);
     } catch (_) {

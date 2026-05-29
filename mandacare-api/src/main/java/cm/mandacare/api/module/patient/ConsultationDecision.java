@@ -2,8 +2,8 @@ package cm.mandacare.api.module.patient;
 
 public enum ConsultationDecision {
     KEEP_IN_CONSULTATION(VisitStatus.IN_CONSULTATION),
-    SEND_TO_LAB(VisitStatus.LAB),
-    RELEASE_PATIENT(VisitStatus.RELEASED);
+    SEND_TO_LAB(VisitStatus.CASH_DESK),
+    RELEASE_PATIENT(VisitStatus.CASH_DESK);
 
     private final VisitStatus visitStatus;
 

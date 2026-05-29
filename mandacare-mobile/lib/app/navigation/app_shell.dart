@@ -28,6 +28,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _currentIndex = AppTab.home.index;
+  int _dashboardRefreshRequestId = 0;
   int _patientFilterRequestId = 0;
   int _consultationRefreshRequestId = 0;
   PatientFilter _requestedPatientFilter = PatientFilter.all;
@@ -40,6 +41,7 @@ class _AppShellState extends State<AppShell> {
         DashboardScreen(
           session: widget.session,
           patientGateway: widget.patientGateway,
+          refreshRequestId: _dashboardRefreshRequestId,
           connectedUserName: widget.session.displayName,
           onOpenPatients: _openPatients,
           onOpenConsultations: () => _openTab(AppTab.consultations),
@@ -50,6 +52,7 @@ class _AppShellState extends State<AppShell> {
           patientGateway: widget.patientGateway,
           requestedFilter: _requestedPatientFilter,
           filterRequestId: _patientFilterRequestId,
+          onQueueChanged: _requestDashboardRefresh,
         ),
         ConsultationScreen(
           session: widget.session,
@@ -97,9 +100,18 @@ class _AppShellState extends State<AppShell> {
   void _openIndex(int index) {
     setState(() {
       _currentIndex = index;
+      if (index == AppTab.home.index) {
+        _dashboardRefreshRequestId++;
+      }
       if (index == AppTab.consultations.index) {
         _consultationRefreshRequestId++;
       }
+    });
+  }
+
+  void _requestDashboardRefresh() {
+    setState(() {
+      _dashboardRefreshRequestId++;
     });
   }
 }

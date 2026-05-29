@@ -1,3 +1,4 @@
+import '../../consultations/domain/consultation_decision.dart';
 import 'patient_summary.dart';
 import 'vitals_summary.dart';
 
@@ -31,6 +32,7 @@ class PatientConsultationSummary {
     required this.symptoms,
     required this.clinicalExam,
     required this.diagnosis,
+    required this.decision,
     this.advice,
     required this.status,
     required this.createdAt,
@@ -40,6 +42,7 @@ class PatientConsultationSummary {
   final String symptoms;
   final String clinicalExam;
   final String diagnosis;
+  final ConsultationDecision decision;
   final String? advice;
   final String status;
   final DateTime createdAt;

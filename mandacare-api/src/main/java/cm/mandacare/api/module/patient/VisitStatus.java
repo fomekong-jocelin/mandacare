@@ -4,5 +4,6 @@ public enum VisitStatus {
     WAITING,
     IN_CONSULTATION,
     LAB,
+    CASH_DESK,
     RELEASED
 }

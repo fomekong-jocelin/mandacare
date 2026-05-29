@@ -1,0 +1,2 @@
+ALTER TABLE auth_users
+    ALTER COLUMN phone DROP NOT NULL;

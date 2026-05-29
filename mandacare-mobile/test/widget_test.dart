@@ -74,62 +74,73 @@ void main() {
     expect(find.text('Mamadou Sarr'), findsNothing);
   });
 
-  testWidgets('dashboard changes a visit status', (tester) async {
+  testWidgets('created patient appears on dashboard without manual refresh', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final patientGateway = FakePatientGateway();
     await tester.pumpWidget(
       MandaCareApp(initialSession: session, patientGateway: patientGateway),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.byKey(
-        const ValueKey(
-          'visit-status-menu-10000000-0000-0000-0000-000000000001',
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-patients')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Ajouter un patient'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), 'Nora Test');
+    await tester.enterText(find.byType(TextFormField).at(1), '34');
+    await tester.enterText(find.byType(TextFormField).at(2), '699000111');
+    await tester.enterText(find.byType(TextFormField).last, 'Contrôle initial');
+    await tester.tap(find.byKey(const ValueKey('save-patient-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Profil patient'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-home')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nora Test'), findsOneWidget);
+  });
+
+  testWidgets(
+    'dashboard queue opens patient detail without direct clinical actions',
+    (tester) async {
+      final patientGateway = FakePatientGateway();
+      await tester.pumpWidget(
+        MandaCareApp(initialSession: session, patientGateway: patientGateway),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey(
+            'visit-status-menu-10000000-0000-0000-0000-000000000001',
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Consultation').last);
-    await tester.pumpAndSettle();
+        findsNothing,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('vitals-action-10000000-0000-0000-0000-000000000001'),
+        ),
+        findsNothing,
+      );
 
-    expect(
-      patientGateway.statusFor('10000000-0000-0000-0000-000000000001'),
-      PatientStatus.inConsultation,
-    );
-  });
+      await tester.tap(find.text('Awa Diop').first);
+      await tester.pumpAndSettle();
 
-  testWidgets('dashboard opens vitals form from queue', (tester) async {
-    final patientGateway = FakePatientGateway();
-    await tester.pumpWidget(
-      MandaCareApp(initialSession: session, patientGateway: patientGateway),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.byKey(
-        const ValueKey('vitals-action-10000000-0000-0000-0000-000000000001'),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Constantes'), findsOneWidget);
-
-    await tester.enterText(
-      find.byKey(const ValueKey('vitals-weight-field')),
-      '70',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('vitals-height-field')),
-      '175',
-    );
-    await tester.tap(find.byKey(const ValueKey('save-vitals-button')));
-    await tester.pumpAndSettle();
-
-    expect(
-      patientGateway.vitalsSavedFor('10000000-0000-0000-0000-000000000001'),
-      isTrue,
-    );
-  });
+      expect(find.text('Profil patient'), findsOneWidget);
+      expect(find.text('Actions patient'), findsOneWidget);
+    },
+  );
 
   testWidgets('opens and searches patients', (tester) async {
     await tester.pumpWidget(appWithSession());
@@ -275,10 +286,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(patientGateway.consultationSavedFor(visitId), isTrue);
-    expect(patientGateway.statusFor(visitId), PatientStatus.released);
+    expect(patientGateway.statusFor(visitId), PatientStatus.cashDesk);
   });
 
-  testWidgets('saves a consultation as draft without validating fields', (tester) async {
+  testWidgets('saves a consultation as draft without validating fields', (
+    tester,
+  ) async {
     final patientGateway = FakePatientGateway();
     const visitId = '10000000-0000-0000-0000-000000000002';
 
@@ -338,7 +351,9 @@ class FakeAuthGateway implements AuthGateway {
 }
 
 class FakePatientGateway implements PatientGateway {
+  final List<PatientSummary> _patients = [...mockPatientSummaries];
   final Map<String, PatientStatus> _visitStatuses = {};
+  final Map<String, ConsultationDecision> _consultationDecisions = {};
   final Map<String, CreateVitalsPayload> _vitalsByVisit = {};
   final Set<String> _consultationVisits = {};
   final Set<String> _vitalsVisits = {};
@@ -348,24 +363,48 @@ class FakePatientGateway implements PatientGateway {
     required AuthSession session,
     String? search,
   }) async {
-    return mockPatientSummaries.map(_withCurrentStatus).toList(growable: false);
+    return _patients.map(_withCurrentStatus).toList(growable: false);
   }
 
   @override
   Future<List<PatientSummary>> listTodayQueue({
     required AuthSession session,
   }) async {
-    return mockPatientSummaries
+    return _patients
         .map(_withCurrentStatus)
         .where((patient) => patient.status != PatientStatus.released)
         .toList(growable: false);
   }
 
   @override
-  Future<void> createPatient({
+  Future<PatientSummary> createPatient({
     required AuthSession session,
     required CreatePatientPayload payload,
-  }) async {}
+  }) async {
+    final index = _patients.length + 1;
+    final visitId = 'created-visit-$index';
+    final patient = PatientSummary(
+      id: 'created-patient-$index',
+      patientNumber: 'MC-${index.toString().padLeft(4, '0')}',
+      latestVisitId: visitId,
+      fullName: '${payload.firstName} ${payload.lastName}',
+      sexAge: payload.sex == 'FEMALE'
+          ? 'F · ${payload.declaredAge} ans'
+          : 'M · ${payload.declaredAge} ans',
+      phoneNumber: payload.phone,
+      reason: payload.arrivalReason,
+      lastVisit: "Aujourd'hui · 10:30",
+      status: PatientStatus.waiting,
+      priority: switch (payload.priority) {
+        'URGENT' => PatientPriority.urgent,
+        'SURVEILLANCE' => PatientPriority.watch,
+        _ => PatientPriority.normal,
+      },
+    );
+    _patients.add(patient);
+    _visitStatuses[visitId] = PatientStatus.waiting;
+    return patient;
+  }
 
   @override
   Future<void> createVisit({
@@ -440,13 +479,14 @@ class FakePatientGateway implements PatientGateway {
     required CreateConsultationPayload payload,
   }) async {
     _consultationVisits.add(visitId);
+    _consultationDecisions[visitId] = payload.decision;
     if (payload.status == 'DRAFT') {
       _visitStatuses[visitId] = PatientStatus.inConsultation;
     } else {
       _visitStatuses[visitId] = switch (payload.decision) {
         ConsultationDecision.keepInConsultation => PatientStatus.inConsultation,
-        ConsultationDecision.sendToLab => PatientStatus.lab,
-        ConsultationDecision.releasePatient => PatientStatus.released,
+        ConsultationDecision.sendToLab => PatientStatus.cashDesk,
+        ConsultationDecision.releasePatient => PatientStatus.cashDesk,
       };
     }
     return 'consult-$visitId';
@@ -457,7 +497,7 @@ class FakePatientGateway implements PatientGateway {
     required AuthSession session,
     required String patientId,
   }) async {
-    final patient = mockPatientSummaries.firstWhere((p) => p.id == patientId);
+    final patient = _patients.firstWhere((p) => p.id == patientId);
     final visitId = patient.latestVisitId;
     if (visitId == null) {
       return [];
@@ -475,13 +515,18 @@ class FakePatientGateway implements PatientGateway {
         status: status,
         priority: patient.priority,
         arrivalAt: DateTime.now().subtract(const Duration(hours: 2)),
-        vitals: hasVitals ? await getLatestVitals(session: session, visitId: visitId) : null,
+        vitals: hasVitals
+            ? await getLatestVitals(session: session, visitId: visitId)
+            : null,
         consultation: hasConsultation
             ? PatientConsultationSummary(
                 id: 'consult-$visitId',
                 symptoms: 'Fièvre, toux',
                 clinicalExam: 'Examen pulmonaire normal',
                 diagnosis: 'Syndrome grippal',
+                decision:
+                    _consultationDecisions[visitId] ??
+                    ConsultationDecision.keepInConsultation,
                 status: 'VALIDATED',
                 createdAt: DateTime.now().subtract(const Duration(hours: 1)),
               )
@@ -490,7 +535,8 @@ class FakePatientGateway implements PatientGateway {
     ];
   }
 
-  final Map<String, CreatePrescriptionPayload> _prescriptionsByConsultation = {};
+  final Map<String, CreatePrescriptionPayload> _prescriptionsByConsultation =
+      {};
 
   @override
   Future<Prescription?> getPrescription({

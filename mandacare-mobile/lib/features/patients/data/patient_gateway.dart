@@ -1,6 +1,7 @@
 import '../../../app/api/api_client.dart';
 import '../../../app/api/api_exception.dart';
 import '../../auth/domain/auth_session.dart';
+import '../../consultations/domain/consultation_decision.dart';
 import '../../consultations/domain/create_consultation_payload.dart';
 import '../../consultations/domain/prescription.dart';
 import '../domain/patient_summary.dart';
@@ -15,7 +16,7 @@ abstract class PatientGateway {
 
   Future<List<PatientSummary>> listTodayQueue({required AuthSession session});
 
-  Future<void> createPatient({
+  Future<PatientSummary> createPatient({
     required AuthSession session,
     required CreatePatientPayload payload,
   });
@@ -108,15 +109,16 @@ class BackendPatientGateway implements PatientGateway {
   }
 
   @override
-  Future<void> createPatient({
+  Future<PatientSummary> createPatient({
     required AuthSession session,
     required CreatePatientPayload payload,
   }) async {
-    await apiClient.postJson(
+    final response = await apiClient.postJson(
       '/patients',
       payload.toJson(),
       token: session.accessToken,
     );
+    return _PatientSummaryMapper.fromJson(response);
   }
 
   @override
@@ -423,6 +425,7 @@ class _PatientSummaryMapper {
     return switch (value) {
       'WAITING' => PatientStatus.waiting,
       'IN_CONSULTATION' => PatientStatus.inConsultation,
+      'CASH_DESK' => PatientStatus.cashDesk,
       'LAB' => PatientStatus.lab,
       'RELEASED' => PatientStatus.released,
       _ => PatientStatus.waiting,
@@ -470,6 +473,7 @@ class _PatientTimelineItemMapper {
     return switch (value) {
       'WAITING' => PatientStatus.waiting,
       'IN_CONSULTATION' => PatientStatus.inConsultation,
+      'CASH_DESK' => PatientStatus.cashDesk,
       'LAB' => PatientStatus.lab,
       'RELEASED' => PatientStatus.released,
       _ => PatientStatus.waiting,
@@ -490,6 +494,7 @@ class _PatientTimelineItemMapper {
       symptoms: json['symptoms'] as String? ?? '',
       clinicalExam: json['clinicalExam'] as String? ?? '',
       diagnosis: json['diagnosis'] as String? ?? '',
+      decision: ConsultationDecision.fromApiValue(json['decision']),
       advice: json['advice'] as String?,
       status: json['status'] as String? ?? 'DRAFT',
       createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
@@ -562,6 +567,7 @@ extension on PatientStatus {
     return switch (this) {
       PatientStatus.waiting => 'WAITING',
       PatientStatus.inConsultation => 'IN_CONSULTATION',
+      PatientStatus.cashDesk => 'CASH_DESK',
       PatientStatus.lab => 'LAB',
       PatientStatus.released => 'RELEASED',
     };

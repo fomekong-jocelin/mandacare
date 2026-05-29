@@ -10,9 +10,6 @@ class QueuePanel extends StatelessWidget {
     required this.loading,
     required this.error,
     required this.onRetry,
-    required this.onStatusChanged,
-    required this.onVitalsPressed,
-    required this.onConsultationPressed,
     required this.onPatientTap,
     super.key,
   });
@@ -21,10 +18,6 @@ class QueuePanel extends StatelessWidget {
   final bool loading;
   final String? error;
   final VoidCallback onRetry;
-  final void Function(PatientSummary patient, PatientStatus status)
-  onStatusChanged;
-  final ValueChanged<PatientSummary> onVitalsPressed;
-  final ValueChanged<PatientSummary> onConsultationPressed;
   final ValueChanged<PatientSummary> onPatientTap;
 
   @override
@@ -81,13 +74,7 @@ class QueuePanel extends StatelessWidget {
     return Column(
       children: [
         for (final entry in visiblePatients.indexed) ...[
-          _QueueLine(
-            patient: entry.$2,
-            onStatusChanged: onStatusChanged,
-            onVitalsPressed: onVitalsPressed,
-            onConsultationPressed: onConsultationPressed,
-            onPatientTap: onPatientTap,
-          ),
+          _QueueLine(patient: entry.$2, onPatientTap: onPatientTap),
           if (entry.$1 < visiblePatients.length - 1) const _SoftDivider(),
         ],
       ],
@@ -96,19 +83,9 @@ class QueuePanel extends StatelessWidget {
 }
 
 class _QueueLine extends StatelessWidget {
-  const _QueueLine({
-    required this.patient,
-    required this.onStatusChanged,
-    required this.onVitalsPressed,
-    required this.onConsultationPressed,
-    required this.onPatientTap,
-  });
+  const _QueueLine({required this.patient, required this.onPatientTap});
 
   final PatientSummary patient;
-  final void Function(PatientSummary patient, PatientStatus status)
-  onStatusChanged;
-  final ValueChanged<PatientSummary> onVitalsPressed;
-  final ValueChanged<PatientSummary> onConsultationPressed;
   final ValueChanged<PatientSummary> onPatientTap;
 
   @override
@@ -167,51 +144,9 @@ class _QueueLine extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  key: ValueKey(
-                    'vitals-action-${patient.latestVisitId ?? patient.fullName}',
-                  ),
-                  tooltip: 'Saisir les constantes',
-                  onPressed: () => onVitalsPressed(patient),
-                  icon: const Icon(Icons.monitor_heart_rounded),
-                ),
-                if (patient.status == PatientStatus.inConsultation) ...[
-                  const SizedBox(width: 2),
-                  IconButton(
-                    key: ValueKey(
-                      'consultation-action-${patient.latestVisitId ?? patient.fullName}',
-                    ),
-                    tooltip: 'Rédiger la consultation',
-                    onPressed: () => onConsultationPressed(patient),
-                    icon: const Icon(
-                      Icons.assignment_rounded,
-                      color: AppColors.medicalGreen,
-                    ),
-                  ),
-                ],
-                const SizedBox(width: 2),
-                PopupMenuButton<PatientStatus>(
-                  key: ValueKey(
-                    'visit-status-menu-${patient.latestVisitId ?? patient.fullName}',
-                  ),
-                  tooltip: 'Changer le statut',
-                  icon: const Icon(Icons.more_vert_rounded),
-                  onSelected: (status) => onStatusChanged(patient, status),
-                  itemBuilder: (context) {
-                    return [
-                      for (final status in PatientStatus.values)
-                        PopupMenuItem<PatientStatus>(
-                          value: status,
-                          enabled: status != patient.status,
-                          child: Text(status.label),
-                        ),
-                    ];
-                  },
-                ),
-              ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
             ),
           ],
         ),
@@ -223,6 +158,7 @@ class _QueueLine extends StatelessWidget {
     return switch (status) {
       PatientStatus.waiting => AppColors.warning,
       PatientStatus.inConsultation => AppColors.success,
+      PatientStatus.cashDesk => AppColors.premiumGold,
       PatientStatus.lab => AppColors.info,
       PatientStatus.released => AppColors.textSecondary,
     };

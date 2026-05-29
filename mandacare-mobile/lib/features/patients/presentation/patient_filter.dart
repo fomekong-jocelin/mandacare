@@ -4,6 +4,7 @@ enum PatientFilter {
   all('Tous'),
   waiting('Attente'),
   urgent('Urgents'),
+  cashDesk('Caisse'),
   lab('Labo');
 
   const PatientFilter(this.label);
@@ -15,6 +16,7 @@ enum PatientFilter {
       PatientFilter.all => true,
       PatientFilter.waiting => patient.status == PatientStatus.waiting,
       PatientFilter.urgent => patient.priority == PatientPriority.urgent,
+      PatientFilter.cashDesk => patient.status == PatientStatus.cashDesk,
       PatientFilter.lab => patient.status == PatientStatus.lab,
     };
   }

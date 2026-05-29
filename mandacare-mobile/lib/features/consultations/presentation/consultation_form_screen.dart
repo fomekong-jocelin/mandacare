@@ -55,6 +55,7 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
   void initState() {
     super.initState();
     _decision = switch (widget.patient.status) {
+      PatientStatus.cashDesk => ConsultationDecision.releasePatient,
       PatientStatus.lab => ConsultationDecision.sendToLab,
       PatientStatus.released => ConsultationDecision.releasePatient,
       _ => ConsultationDecision.keepInConsultation,
@@ -85,6 +86,7 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
             _clinicalExamController.text = saved.clinicalExam;
             _diagnosisController.text = saved.diagnosis;
             _adviceController.text = saved.advice ?? '';
+            _decision = saved.decision;
             _originalStatus = saved.status;
           });
 
@@ -576,7 +578,10 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
                     Navigator.of(dialogContext).pop();
                     final url = Uri.parse(fullUrl);
                     try {
-                      final success = await launchUrl(url, mode: LaunchMode.externalApplication);
+                      final success = await launchUrl(
+                        url,
+                        mode: LaunchMode.externalApplication,
+                      );
                       if (!success) {
                         messenger.showSnackBar(
                           const SnackBar(
@@ -643,16 +648,16 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
   String get _submitLabel {
     return switch (_decision) {
       ConsultationDecision.keepInConsultation => 'Enregistrer',
-      ConsultationDecision.sendToLab => 'Envoyer au labo',
-      ConsultationDecision.releasePatient => 'Terminer la visite',
+      ConsultationDecision.sendToLab => 'Envoyer à la caisse',
+      ConsultationDecision.releasePatient => 'Envoyer à la caisse',
     };
   }
 
   IconData get _submitIcon {
     return switch (_decision) {
       ConsultationDecision.keepInConsultation => Icons.save_rounded,
-      ConsultationDecision.sendToLab => Icons.science_rounded,
-      ConsultationDecision.releasePatient => Icons.check_rounded,
+      ConsultationDecision.sendToLab => Icons.payments_rounded,
+      ConsultationDecision.releasePatient => Icons.payments_rounded,
     };
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../consultations/domain/consultation_decision.dart';
 import '../../consultations/domain/prescription.dart';
 
 import '../../../app/theme/app_colors.dart';
@@ -89,10 +90,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
 
     setState(() => _loading = true);
     try {
-      final Prescription? prescription = await widget.patientGateway.getPrescription(
-        session: widget.session,
-        consultationId: consultation.id,
-      );
+      final Prescription? prescription = await widget.patientGateway
+          .getPrescription(
+            session: widget.session,
+            consultationId: consultation.id,
+          );
       if (!mounted) {
         return;
       }
@@ -264,10 +266,15 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                         flex: 3,
                         child: FilledButton.icon(
                           onPressed: () async {
-                            String relativeUrl = prescription.pdfUrl ??
+                            String relativeUrl =
+                                prescription.pdfUrl ??
                                 '/consultations/${consultation.id}/prescription/pdf';
-                            final baseUrl = widget.patientGateway is BackendPatientGateway
-                                ? (widget.patientGateway as BackendPatientGateway).apiClient.baseUrl
+                            final baseUrl =
+                                widget.patientGateway is BackendPatientGateway
+                                ? (widget.patientGateway
+                                          as BackendPatientGateway)
+                                      .apiClient
+                                      .baseUrl
                                 : "http://localhost:8080/api/v1";
 
                             if (relativeUrl.startsWith('/api/v1/')) {
@@ -282,7 +289,10 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                             final url = Uri.parse(fullUrl);
 
                             try {
-                              final success = await launchUrl(url, mode: LaunchMode.externalApplication);
+                              final success = await launchUrl(
+                                url,
+                                mode: LaunchMode.externalApplication,
+                              );
                               if (!success) {
                                 _showMessage('Impossible d\'ouvrir le PDF.');
                               }
@@ -302,10 +312,14 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                       const SizedBox(width: 8),
                       OutlinedButton(
                         onPressed: () async {
-                          String relativeUrl = prescription.pdfUrl ??
+                          String relativeUrl =
+                              prescription.pdfUrl ??
                               '/consultations/${consultation.id}/prescription/pdf';
-                          final baseUrl = widget.patientGateway is BackendPatientGateway
-                              ? (widget.patientGateway as BackendPatientGateway).apiClient.baseUrl
+                          final baseUrl =
+                              widget.patientGateway is BackendPatientGateway
+                              ? (widget.patientGateway as BackendPatientGateway)
+                                    .apiClient
+                                    .baseUrl
                               : "http://localhost:8080/api/v1";
 
                           if (relativeUrl.startsWith('/api/v1/')) {
@@ -356,6 +370,57 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       return _timeline.first.status;
     }
     return widget.patient.status;
+  }
+
+  PatientTimelineItem? get _latestVisit {
+    if (_timeline.isEmpty) {
+      return null;
+    }
+    return _timeline.first;
+  }
+
+  bool get _hasActiveVisit {
+    final latestVisit = _latestVisit;
+    if (latestVisit == null || latestVisit.status == PatientStatus.released) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    return latestVisit.arrivalAt.year == now.year &&
+        latestVisit.arrivalAt.month == now.month &&
+        latestVisit.arrivalAt.day == now.day;
+  }
+
+  ConsultationDecision? get _latestConsultationDecision {
+    return _latestVisit?.consultation?.decision;
+  }
+
+  PatientStatus get _statusAfterCashDesk {
+    return switch (_latestConsultationDecision) {
+      ConsultationDecision.sendToLab => PatientStatus.lab,
+      _ => PatientStatus.released,
+    };
+  }
+
+  Future<void> _completeCashDeskStep() async {
+    final latestVisit = _latestVisit;
+    if (latestVisit == null) {
+      _showMessage('Visite non synchronisée avec le serveur.');
+      return;
+    }
+
+    try {
+      await widget.patientGateway.changeVisitStatus(
+        session: widget.session,
+        visitId: latestVisit.visitId,
+        status: _statusAfterCashDesk,
+      );
+      if (mounted) {
+        await _loadTimeline();
+      }
+    } catch (_) {
+      _showMessage('Impossible de valider le passage en caisse.');
+    }
   }
 
   Future<void> _openVitalsForm() async {
@@ -454,7 +519,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   const SizedBox(height: 14),
                   _PatientWorkflowStepper(
                     status: _currentStatus,
-                    hasVitals: _timeline.isNotEmpty && _timeline.first.vitals != null,
+                    hasVitals:
+                        _timeline.isNotEmpty && _timeline.first.vitals != null,
                   ),
                   const SizedBox(height: 14),
                   MetricStrip(
@@ -484,49 +550,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   const SizedBox(height: 18),
                   _SectionTitle(title: 'Actions patient'),
                   const SizedBox(height: 10),
-                  (() {
-                    final hasActiveVisit = _timeline.isNotEmpty && 
-                        _timeline.first.status != PatientStatus.released &&
-                        _timeline.first.arrivalAt.year == DateTime.now().year &&
-                        _timeline.first.arrivalAt.month == DateTime.now().month &&
-                        _timeline.first.arrivalAt.day == DateTime.now().day;
-
-                    if (hasActiveVisit) {
-                      final latestVisit = _timeline.first;
-                      final needsVitals = latestVisit.vitals == null;
-                      final inConsult = latestVisit.status == PatientStatus.inConsultation;
-
-                      if (needsVitals) {
-                        return ActionTile(
-                          icon: Icons.monitor_heart_rounded,
-                          title: 'Saisir les constantes',
-                          subtitle: 'Tension, pouls, température (Étape 2)',
-                          onTap: _openVitalsForm,
-                        );
-                      } else if (!inConsult) {
-                        return ActionTile(
-                          icon: Icons.play_arrow_rounded,
-                          title: 'Démarrer la consultation',
-                          subtitle: 'Fiche d\'observation & diagnostic (Étape 3)',
-                          onTap: _openConsultationForm,
-                        );
-                      } else {
-                        return ActionTile(
-                          icon: Icons.assignment_rounded,
-                          title: 'Rédiger la consultation',
-                          subtitle: 'Saisir le rapport et l\'ordonnance (Étape 3)',
-                          onTap: _openConsultationForm,
-                        );
-                      }
-                    }
-
-                    return ActionTile(
-                      icon: Icons.add_box_rounded,
-                      title: 'Nouvelle visite',
-                      subtitle: 'Enregistrer une nouvelle visite (Étape 1)',
-                      onTap: _openVisitForm,
-                    );
-                  })(),
+                  _buildPatientAction(),
                   const SizedBox(height: 10),
                   (() {
                     final latestConsult = _latestConsultationWithPrescription;
@@ -619,6 +643,63 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     if (created == true && mounted) {
       Navigator.of(context).pop(true);
     }
+  }
+
+  Widget _buildPatientAction() {
+    final latestVisit = _latestVisit;
+    if (!_hasActiveVisit || latestVisit == null) {
+      return ActionTile(
+        icon: Icons.add_box_rounded,
+        title: 'Nouvelle visite',
+        subtitle: 'Enregistrer une nouvelle visite (Étape 1)',
+        onTap: _openVisitForm,
+      );
+    }
+
+    if (latestVisit.status == PatientStatus.cashDesk) {
+      final nextLabel = _statusAfterCashDesk == PatientStatus.lab
+          ? 'Labo'
+          : 'Sortie';
+      return ActionTile(
+        icon: Icons.payments_rounded,
+        title: 'Valider le passage en caisse',
+        subtitle: 'Encaissement puis orientation vers $nextLabel (Étape 4)',
+        onTap: _completeCashDeskStep,
+      );
+    }
+
+    if (latestVisit.status == PatientStatus.lab) {
+      return const ActionTile(
+        icon: Icons.science_rounded,
+        title: 'En attente du laboratoire',
+        subtitle: 'Examens et résultats à traiter au laboratoire (Étape 5)',
+      );
+    }
+
+    if (latestVisit.vitals == null) {
+      return ActionTile(
+        icon: Icons.monitor_heart_rounded,
+        title: 'Saisir les constantes',
+        subtitle: 'Tension, pouls, température (Étape 2)',
+        onTap: _openVitalsForm,
+      );
+    }
+
+    if (latestVisit.status != PatientStatus.inConsultation) {
+      return ActionTile(
+        icon: Icons.play_arrow_rounded,
+        title: 'Démarrer la consultation',
+        subtitle: 'Fiche d\'observation & diagnostic (Étape 3)',
+        onTap: _openConsultationForm,
+      );
+    }
+
+    return ActionTile(
+      icon: Icons.assignment_rounded,
+      title: 'Rédiger la consultation',
+      subtitle: 'Saisir le rapport et l\'ordonnance (Étape 3)',
+      onTap: _openConsultationForm,
+    );
   }
 
   IconData _timelineIcon(PatientTimelineItem item) {
@@ -769,11 +850,14 @@ class _PatientWorkflowStepper extends StatelessWidget {
   final bool hasVitals;
 
   int get currentStep {
-    if (status == PatientStatus.released) return 4;
-    if (status == PatientStatus.lab) return 3;
+    if (status == PatientStatus.released) return 5;
+    if (status == PatientStatus.lab) return 4;
+    if (status == PatientStatus.cashDesk) return 3;
     if (status == PatientStatus.inConsultation) return 2;
     if (status == PatientStatus.waiting) {
-      return hasVitals ? 2 : 1; // If vitals taken, next step is consultation. Else, next step is vitals.
+      return hasVitals
+          ? 2
+          : 1; // If vitals taken, next step is consultation. Else, next step is vitals.
     }
     return 0;
   }
@@ -784,7 +868,8 @@ class _PatientWorkflowStepper extends StatelessWidget {
       _StepInfo('Visite', Icons.login_rounded),
       _StepInfo('Constantes', Icons.monitor_heart_rounded),
       _StepInfo('Consultation', Icons.medical_services_rounded),
-      _StepInfo('Labo / Caisse', Icons.science_rounded),
+      _StepInfo('Caisse', Icons.payments_rounded),
+      _StepInfo('Labo', Icons.science_rounded),
       _StepInfo('Sortie', Icons.check_circle_rounded),
     ];
 
@@ -839,8 +924,8 @@ class _PatientWorkflowStepper extends StatelessWidget {
                             color: index == 0
                                 ? Colors.transparent
                                 : (index <= activeIndex
-                                    ? AppColors.medicalGreen
-                                    : Colors.grey[200]),
+                                      ? AppColors.medicalGreen
+                                      : Colors.grey[200]),
                           ),
                         ),
                         // Circle Indicator
@@ -851,8 +936,8 @@ class _PatientWorkflowStepper extends StatelessWidget {
                             color: isActive
                                 ? Colors.white
                                 : (isCompleted
-                                    ? AppColors.medicalGreen
-                                    : Colors.grey[50]),
+                                      ? AppColors.medicalGreen
+                                      : Colors.grey[50]),
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: stepColor,
@@ -861,12 +946,11 @@ class _PatientWorkflowStepper extends StatelessWidget {
                             boxShadow: isActive
                                 ? [
                                     BoxShadow(
-                                      color: AppColors.deepHealthBlue.withValues(
-                                        alpha: 0.15,
-                                      ),
+                                      color: AppColors.deepHealthBlue
+                                          .withValues(alpha: 0.15),
                                       blurRadius: 4,
                                       offset: const Offset(0, 2),
-                                    )
+                                    ),
                                   ]
                                 : null,
                           ),
@@ -876,8 +960,8 @@ class _PatientWorkflowStepper extends StatelessWidget {
                             color: isCompleted
                                 ? Colors.white
                                 : (isActive
-                                    ? AppColors.deepHealthBlue
-                                    : Colors.grey[400]),
+                                      ? AppColors.deepHealthBlue
+                                      : Colors.grey[400]),
                           ),
                         ),
                         // Right connecting line
@@ -887,8 +971,8 @@ class _PatientWorkflowStepper extends StatelessWidget {
                             color: index == steps.length - 1
                                 ? Colors.transparent
                                 : (index < activeIndex
-                                    ? AppColors.medicalGreen
-                                    : Colors.grey[200]),
+                                      ? AppColors.medicalGreen
+                                      : Colors.grey[200]),
                           ),
                         ),
                       ],
@@ -900,13 +984,14 @@ class _PatientWorkflowStepper extends StatelessWidget {
                       maxLines: 1,
                       style: TextStyle(
                         fontSize: 9.5,
-                        fontWeight:
-                            isActive ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isActive
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                         color: isActive
                             ? AppColors.deepHealthBlue
                             : (isCompleted
-                                ? AppColors.textPrimary
-                                : Colors.grey[500]),
+                                  ? AppColors.textPrimary
+                                  : Colors.grey[500]),
                       ),
                     ),
                   ],
