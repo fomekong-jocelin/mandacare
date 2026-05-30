@@ -4,6 +4,7 @@ import '../../auth/domain/auth_session.dart';
 import '../../consultations/domain/consultation_decision.dart';
 import '../../consultations/domain/create_consultation_payload.dart';
 import '../../consultations/domain/prescription.dart';
+import '../../dashboard/domain/dashboard_today_summary.dart';
 import '../domain/patient_summary.dart';
 import '../domain/patient_timeline_item.dart';
 import '../domain/vitals_summary.dart';
@@ -18,6 +19,10 @@ abstract class PatientGateway {
     required AuthSession session,
     PatientStatus? status,
     int limit = 8,
+  });
+
+  Future<DashboardTodaySummary> getTodayDashboard({
+    required AuthSession session,
   });
 
   Future<PatientSummary> createPatient({
@@ -129,6 +134,17 @@ class BackendPatientGateway implements PatientGateway {
         .whereType<Map<String, dynamic>>()
         .map(_PatientSummaryMapper.fromJson)
         .toList(growable: false);
+  }
+
+  @override
+  Future<DashboardTodaySummary> getTodayDashboard({
+    required AuthSession session,
+  }) async {
+    final response = await apiClient.getJson(
+      '/dashboard/today',
+      token: session.accessToken,
+    );
+    return _DashboardTodaySummaryMapper.fromJson(response);
   }
 
   @override
@@ -543,6 +559,44 @@ class _PatientSummaryMapper {
   }
 
   static String _twoDigits(int value) => value.toString().padLeft(2, '0');
+}
+
+class _DashboardTodaySummaryMapper {
+  const _DashboardTodaySummaryMapper._();
+
+  static DashboardTodaySummary fromJson(Map<String, dynamic> json) {
+    return DashboardTodaySummary(
+      patientsToday: _int(json['patientsToday']),
+      consultationsToday: _int(json['consultationsToday']),
+      pendingExams: _int(json['pendingExams']),
+      validatedResults: _int(json['validatedResults']),
+      dailyRevenue: _double(json['dailyRevenue']),
+      unpaidInvoices: _int(json['unpaidInvoices']),
+    );
+  }
+
+  static int _int(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
+  }
+
+  static double _double(Object? value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value) ?? 0;
+    }
+    return 0;
+  }
 }
 
 class _PatientTimelineItemMapper {

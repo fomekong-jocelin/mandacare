@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/layout/adaptive_layout.dart';
 import '../../auth/domain/auth_session.dart';
+import '../domain/dashboard_today_summary.dart';
 import '../../patients/data/patient_gateway.dart';
 import '../../patients/domain/patient_summary.dart';
 import '../../patients/presentation/patient_filter.dart';
@@ -39,20 +40,23 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   List<PatientSummary> _queue = const [];
+  DashboardTodaySummary _summary = DashboardTodaySummary.empty;
   bool _loadingQueue = true;
+  bool _loadingSummary = true;
   String? _queueError;
+  String? _summaryError;
 
   @override
   void initState() {
     super.initState();
-    _loadQueue();
+    _loadDashboardData();
   }
 
   @override
   void didUpdateWidget(covariant DashboardScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.refreshRequestId != oldWidget.refreshRequestId) {
-      _loadQueue(showLoader: false);
+      _loadDashboardData(showLoader: false);
     }
   }
 
@@ -70,7 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               Expanded(
                 child: RefreshIndicator(
-                  onRefresh: () => _loadQueue(showLoader: false),
+                  onRefresh: () => _loadDashboardData(showLoader: false),
                   child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
@@ -78,7 +82,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
                         sliver: SliverList.list(
                           children: [
-                            TodayStatusGrid(isTablet: isTablet),
+                            TodayStatusGrid(
+                              isTablet: isTablet,
+                              summary: _summary,
+                              loading: _loadingSummary,
+                              error: _summaryError,
+                              onRetry: _loadSummary,
+                              onOpenPatients: () {
+                                widget.onOpenPatients(PatientFilter.all);
+                              },
+                              onOpenConsultations: widget.onOpenConsultations,
+                              onOpenLab: () {
+                                widget.onOpenPatients(PatientFilter.lab);
+                              },
+                              onOpenCashDesk: widget.onOpenCashDesk,
+                            ),
                             const SizedBox(height: 16),
                             const SectionHeader(
                               title: 'Accès rapide',
@@ -127,6 +145,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Future<void> _loadDashboardData({
+    bool showLoader = true,
+    PatientSummary? ensureVisible,
+  }) async {
+    await Future.wait([
+      _loadSummary(showLoader: showLoader),
+      _loadQueue(showLoader: showLoader, ensureVisible: ensureVisible),
+    ]);
+  }
+
+  Future<void> _loadSummary({bool showLoader = true}) async {
+    if (showLoader) {
+      setState(() {
+        _loadingSummary = true;
+        _summaryError = null;
+      });
+    }
+
+    try {
+      final summary = await widget.patientGateway.getTodayDashboard(
+        session: widget.session,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _summary = summary;
+        _loadingSummary = false;
+        _summaryError = null;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loadingSummary = false;
+        _summaryError = "Impossible de charger les indicateurs du jour.";
+      });
+    }
+  }
+
   Future<void> _loadQueue({
     bool showLoader = true,
     PatientSummary? ensureVisible,
@@ -150,6 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? queue
             : _mergeQueuePatient(queue, ensureVisible);
         _loadingQueue = false;
+        _queueError = null;
       });
     } catch (_) {
       if (!mounted) {
@@ -173,7 +233,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
     if (patient != null) {
       _showPatientInQueue(patient);
-      await _loadQueue(showLoader: false, ensureVisible: patient);
+      await _loadDashboardData(showLoader: false, ensureVisible: patient);
       if (mounted) {
         _openPatientDetail(patient);
       }
@@ -217,7 +277,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         )
-        .then((_) => _loadQueue());
+        .then((_) => _loadDashboardData(showLoader: false));
   }
 }
 

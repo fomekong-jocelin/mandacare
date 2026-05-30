@@ -5,6 +5,7 @@ import 'package:mandacare_mobile/features/auth/domain/auth_session.dart';
 import 'package:mandacare_mobile/features/consultations/domain/consultation_decision.dart';
 import 'package:mandacare_mobile/features/consultations/domain/create_consultation_payload.dart';
 import 'package:mandacare_mobile/features/consultations/domain/prescription.dart';
+import 'package:mandacare_mobile/features/dashboard/domain/dashboard_today_summary.dart';
 import 'package:mandacare_mobile/features/patients/data/mock_patient_summaries.dart';
 import 'package:mandacare_mobile/features/patients/data/patient_gateway.dart';
 import 'package:mandacare_mobile/features/patients/domain/patient_summary.dart';
@@ -72,6 +73,30 @@ void main() {
     expect(find.text('Awa Diop'), findsOneWidget);
     expect(find.text('Cheikh Fall'), findsOneWidget);
     expect(find.text('Mamadou Sarr'), findsNothing);
+  });
+
+  testWidgets('dashboard status cards open the right work queues', (
+    tester,
+  ) async {
+    await tester.pumpWidget(appWithSession());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('dashboard-status-card-lab')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dossiers actifs et file du jour'), findsOneWidget);
+    expect(find.text('Ibrahima Diallo'), findsOneWidget);
+    expect(find.text('Awa Diop'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-home')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('dashboard-status-card-cash-desk')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Vue opérationnelle'), findsOneWidget);
+    expect(find.text('Dossiers à encaisser'), findsOneWidget);
   });
 
   testWidgets('created patient appears on dashboard without manual refresh', (
@@ -554,6 +579,35 @@ class FakePatientGateway implements PatientGateway {
 
   PatientStatus? lastQueueStatus;
   int? lastQueueLimit;
+
+  @override
+  Future<DashboardTodaySummary> getTodayDashboard({
+    required AuthSession session,
+  }) async {
+    final patients = _patients.map(_withCurrentStatus).toList(growable: false);
+    final todayPatients = patients
+        .where((patient) => patient.lastVisit.startsWith("Aujourd'hui"))
+        .toList(growable: false);
+    final dailyRevenue = _paymentsByVisit.values.fold<double>(
+      0,
+      (sum, payment) => sum + payment.amount,
+    );
+
+    return DashboardTodaySummary(
+      patientsToday: todayPatients.length,
+      consultationsToday: todayPatients
+          .where((patient) => patient.status != PatientStatus.waiting)
+          .length,
+      pendingExams: todayPatients
+          .where((patient) => patient.status == PatientStatus.lab)
+          .length,
+      validatedResults: _labResultsByVisit.length,
+      dailyRevenue: dailyRevenue,
+      unpaidInvoices: todayPatients
+          .where((patient) => patient.status == PatientStatus.cashDesk)
+          .length,
+    );
+  }
 
   @override
   Future<PatientSummary> createPatient({
