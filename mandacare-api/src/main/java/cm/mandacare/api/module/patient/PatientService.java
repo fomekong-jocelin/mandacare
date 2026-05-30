@@ -26,6 +26,8 @@ class PatientService {
     private final ConsultationRepository consultationRepository;
     private final VitalsMapper vitalsMapper;
     private final ConsultationMapper consultationMapper;
+    private final PrescriptionRepository prescriptionRepository;
+    private final LabResultRepository labResultRepository;
 
     PatientService(
             PatientRepository patients,
@@ -36,7 +38,9 @@ class PatientService {
             VitalsRepository vitalsRepository,
             ConsultationRepository consultationRepository,
             VitalsMapper vitalsMapper,
-            ConsultationMapper consultationMapper
+            ConsultationMapper consultationMapper,
+            PrescriptionRepository prescriptionRepository,
+            LabResultRepository labResultRepository
     ) {
         this.patients = patients;
         this.visits = visits;
@@ -47,6 +51,8 @@ class PatientService {
         this.consultationRepository = consultationRepository;
         this.vitalsMapper = vitalsMapper;
         this.consultationMapper = consultationMapper;
+        this.prescriptionRepository = prescriptionRepository;
+        this.labResultRepository = labResultRepository;
     }
 
     @Transactional
@@ -135,9 +141,30 @@ class PatientService {
                     .orElse(null);
 
             ConsultationResponse consultationResponse = consultationRepository.findByVisitId(visit.id())
-                    .map(consultation -> consultationMapper.toResponse(
-                            consultation,
-                            visit.status()
+                    .map(consultation -> {
+                        boolean hasPrescription = prescriptionRepository.existsByConsultationId(consultation.id());
+                        return consultationMapper.toResponse(
+                                consultation,
+                                visit.status(),
+                                hasPrescription
+                        );
+                    })
+                    .orElse(null);
+
+            LabResultResponse labResultResponse = labResultRepository.findByVisitId(visit.id())
+                    .stream()
+                    .findFirst()
+                    .map(labResult -> new LabResultResponse(
+                            labResult.id(),
+                            labResult.resultNumber(),
+                            labResult.dossierNumber(),
+                            labResult.examType(),
+                            labResult.results(),
+                            labResult.observations(),
+                            labResult.sampleDate(),
+                            labResult.normalResults(),
+                            labResult.status(),
+                            labResult.createdAt()
                     ))
                     .orElse(null);
 
@@ -150,7 +177,8 @@ class PatientService {
                     visit.arrivalAt(),
                     visit.closedAt(),
                     vitalsResponse,
-                    consultationResponse
+                    consultationResponse,
+                    labResultResponse
             );
         }).toList();
     }

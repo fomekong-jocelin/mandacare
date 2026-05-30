@@ -98,6 +98,42 @@ class LabResultEntity {
         return id;
     }
 
+    String resultNumber() {
+        return resultNumber;
+    }
+
+    String dossierNumber() {
+        return dossierNumber;
+    }
+
+    String examType() {
+        return examType;
+    }
+
+    String results() {
+        return results;
+    }
+
+    String observations() {
+        return observations;
+    }
+
+    LocalDate sampleDate() {
+        return sampleDate;
+    }
+
+    boolean normalResults() {
+        return normalResults;
+    }
+
+    String status() {
+        return status;
+    }
+
+    Instant createdAt() {
+        return createdAt;
+    }
+
     private static String normalize(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;

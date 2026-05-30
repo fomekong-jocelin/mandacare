@@ -12,5 +12,6 @@ public record PatientTimelineItemResponse(
         Instant arrivalAt,
         Instant closedAt,
         VitalsResponse vitals,
-        ConsultationResponse consultation
+        ConsultationResponse consultation,
+        LabResultResponse labResult
 ) {}

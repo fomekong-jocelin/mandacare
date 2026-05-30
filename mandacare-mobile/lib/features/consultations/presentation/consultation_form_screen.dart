@@ -8,6 +8,7 @@ import '../../../shared/presentation/widgets/page_header.dart';
 import '../../auth/domain/auth_session.dart';
 import '../../patients/data/patient_gateway.dart';
 import '../../patients/domain/patient_summary.dart';
+import '../../patients/domain/patient_timeline_item.dart';
 import '../../patients/domain/vitals_summary.dart';
 import '../domain/consultation_decision.dart';
 import '../domain/create_consultation_payload.dart';
@@ -55,6 +56,7 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
   bool _loadingExams = false;
   final Set<String> _selectedExamIds = {};
   String _examSearchQuery = '';
+  PatientLabResultSummary? _labResult;
 
   @override
   void initState() {
@@ -102,7 +104,13 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
         (item) => item.visitId == widget.visitId,
       );
       if (matchIndex != -1) {
-        final saved = items[matchIndex].consultation;
+        final timelineItem = items[matchIndex];
+        if (timelineItem.labResult != null && mounted) {
+          setState(() {
+            _labResult = timelineItem.labResult;
+          });
+        }
+        final saved = timelineItem.consultation;
         if (saved != null && mounted) {
           setState(() {
             _symptomsController.text = saved.symptoms;
@@ -200,6 +208,10 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
                     const SizedBox(height: 12),
                     ConsultationVitalsSummary(vitals: widget.vitals),
                     const SizedBox(height: 20),
+                    if (_labResult != null) ...[
+                      _buildLabResultsSection(_labResult!),
+                      const SizedBox(height: 20),
+                    ],
                     FormSection(
                       title: 'Observation clinique',
                       children: [
@@ -851,6 +863,126 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _buildLabResultsSection(PatientLabResultSummary labResult) {
+    final badgeColor = labResult.isNormal ? AppColors.medicalGreen : AppColors.error;
+    final badgeText = labResult.isNormal ? 'Résultats normaux' : 'Résultats anormaux / Pathologie';
+
+    return FormSection(
+      title: 'Résultats d\'examens de laboratoire',
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.lightBackground.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Type d\'examen',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.deepHealthBlue,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          labResult.examType,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: badgeColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: badgeColor.withValues(alpha: 0.20)),
+                    ),
+                    child: Text(
+                      badgeText,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: badgeColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              const Text(
+                'Analyses / Résultats',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.deepHealthBlue,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                labResult.results,
+                style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+              ),
+              if (labResult.observations != null && labResult.observations!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Observations du laboratoire',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.deepHealthBlue,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  labResult.observations!,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Prélèvement : ${_formatDate(labResult.sampleDate)}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                  Text(
+                    'N° Dossier LAB : ${labResult.dossierNumber ?? "—"}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
   }
 }
 

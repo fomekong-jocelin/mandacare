@@ -7,6 +7,7 @@ import '../../consultations/domain/prescription.dart';
 import '../../dashboard/domain/dashboard_today_summary.dart';
 import '../domain/patient_summary.dart';
 import '../../cashdesk/domain/invoice_preview.dart';
+import '../../cashdesk/domain/invoice.dart';
 import '../../consultations/domain/exam.dart';
 import '../domain/patient_timeline_item.dart';
 import '../domain/vitals_summary.dart';
@@ -94,6 +95,11 @@ abstract class PatientGateway {
   });
 
   Future<InvoicePreview> getInvoicePreview({
+    required AuthSession session,
+    required String visitId,
+  });
+
+  Future<List<Invoice>> getInvoices({
     required AuthSession session,
     required String visitId,
   });
@@ -332,6 +338,21 @@ class BackendPatientGateway implements PatientGateway {
       token: session.accessToken,
     );
     return InvoicePreview.fromJson(response);
+  }
+
+  @override
+  Future<List<Invoice>> getInvoices({
+    required AuthSession session,
+    required String visitId,
+  }) async {
+    final response = await apiClient.getJsonList(
+      '/visits/$visitId/invoices',
+      token: session.accessToken,
+    );
+    return response
+        .whereType<Map<String, dynamic>>()
+        .map(Invoice.fromJson)
+        .toList(growable: false);
   }
 }
 
@@ -642,6 +663,7 @@ class _PatientTimelineItemMapper {
   static PatientTimelineItem fromJson(Map<String, dynamic> json) {
     final vitalsJson = json['vitals'];
     final consultationJson = json['consultation'];
+    final labResultJson = json['labResult'];
 
     return PatientTimelineItem(
       visitId: json['visitId'] as String,
@@ -658,6 +680,9 @@ class _PatientTimelineItemMapper {
           : null,
       consultation: consultationJson is Map<String, dynamic>
           ? _consultation(consultationJson)
+          : null,
+      labResult: labResultJson is Map<String, dynamic>
+          ? _labResult(labResultJson)
           : null,
     );
   }
@@ -690,6 +715,22 @@ class _PatientTimelineItemMapper {
       decision: ConsultationDecision.fromApiValue(json['decision']),
       advice: json['advice'] as String?,
       status: json['status'] as String? ?? 'DRAFT',
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+      hasPrescription: json['hasPrescription'] as bool? ?? false,
+    );
+  }
+
+  static PatientLabResultSummary _labResult(Map<String, dynamic> json) {
+    return PatientLabResultSummary(
+      id: json['id'] as String,
+      resultNumber: json['resultNumber'] as String,
+      dossierNumber: json['dossierNumber'] as String?,
+      examType: json['examType'] as String,
+      results: json['results'] as String,
+      observations: json['observations'] as String?,
+      sampleDate: DateTime.parse(json['sampleDate'] as String),
+      isNormal: (json['isNormal'] ?? json['normal']) as bool? ?? false,
+      status: json['status'] as String? ?? 'VALIDATED',
       createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
     );
   }

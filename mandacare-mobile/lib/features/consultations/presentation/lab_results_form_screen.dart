@@ -8,6 +8,7 @@ import '../../../shared/presentation/widgets/page_header.dart';
 import '../../auth/domain/auth_session.dart';
 import '../../patients/data/patient_gateway.dart';
 import '../../patients/domain/patient_summary.dart';
+import '../../cashdesk/domain/invoice.dart';
 
 class LabResultsFormScreen extends StatefulWidget {
   const LabResultsFormScreen({
@@ -46,6 +47,42 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
     'Autre',
   ];
 
+  List<Invoice> _invoices = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInvoices();
+  }
+
+  Future<void> _loadInvoices() async {
+    try {
+      final list = await widget.patientGateway.getInvoices(
+        session: widget.session,
+        visitId: widget.visitId,
+      );
+      if (mounted) {
+        setState(() {
+          _invoices = list;
+        });
+      }
+    } catch (_) {
+      // Fail silently — the form is still usable without the prescribed exams card
+    }
+  }
+
+  List<String> get _prescribedExams {
+    final List<String> exams = [];
+    for (final inv in _invoices) {
+      for (final line in inv.items) {
+        if (line.type == 'EXAM') {
+          exams.add(line.label);
+        }
+      }
+    }
+    return exams;
+  }
+
   @override
   void dispose() {
     _resultsController.dispose();
@@ -73,6 +110,10 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
                       patient: widget.patient,
                       dossierNumber: _dossierNumber,
                     ),
+                    if (_prescribedExams.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      _buildPrescribedExamsCard(),
+                    ],
                     const SizedBox(height: 20),
                     FormSection(title: 'Prélèvement', children: _sampleFields),
                     const SizedBox(height: 20),
@@ -142,7 +183,7 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
   List<Widget> get _resultFields {
     return [
       CompactTextFormField(
-        key: const ValueKey('lab-results-field'),
+        fieldKey: const ValueKey('lab-results-field'),
         controller: _resultsController,
         label: 'Résultats',
         hintText: 'Saisir les résultats du laboratoire...',
@@ -248,6 +289,74 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
   static String _twoDigits(int value) => value.toString().padLeft(2, '0');
 
   static const String _normalResultText = 'Résultats normaux';
+
+  Widget _buildPrescribedExamsCard() {
+    final exams = _prescribedExams;
+    return FormSection(
+      title: 'Examens prescrits et réglés en caisse',
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.deepHealthBlue.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppColors.deepHealthBlue.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(
+                    Icons.assignment_turned_in_rounded,
+                    color: AppColors.deepHealthBlue,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Fiche d\'examen (Caisse)',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.deepHealthBlue,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ...exams.map((exam) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        size: 16,
+                        color: AppColors.medicalGreen,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          exam,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

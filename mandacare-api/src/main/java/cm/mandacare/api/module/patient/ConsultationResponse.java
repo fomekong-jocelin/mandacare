@@ -16,6 +16,7 @@ public record ConsultationResponse(
         ConsultationDecision decision,
         VisitStatus visitStatus,
         Instant validatedAt,
-        Instant createdAt
+        Instant createdAt,
+        boolean hasPrescription
 ) {
 }

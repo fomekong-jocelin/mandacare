@@ -19,6 +19,7 @@ class CompactTextFormField extends StatelessWidget {
     this.suffixIcon,
     this.autofillHints,
     this.onFieldSubmitted,
+    this.fieldKey,
     super.key,
   });
 
@@ -37,6 +38,7 @@ class CompactTextFormField extends StatelessWidget {
   final Widget? suffixIcon;
   final Iterable<String>? autofillHints;
   final ValueChanged<String>? onFieldSubmitted;
+  final Key? fieldKey;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +50,7 @@ class CompactTextFormField extends StatelessWidget {
         CompactFieldLabel(label: label),
         const SizedBox(height: 5),
         TextFormField(
+          key: fieldKey,
           controller: controller,
           keyboardType: keyboardType,
           textInputAction: textInputAction,

@@ -67,5 +67,28 @@ class VisitController {
                 .headers(headers)
                 .body(pdfBytes);
     }
+
+    @org.springframework.web.bind.annotation.GetMapping("/{id}/invoices")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    java.util.List<InvoiceResponse> getInvoices(@PathVariable UUID id) {
+        java.util.List<InvoiceEntity> invoices = invoiceRepository.findByVisitIdOrderByCreatedAtDesc(id);
+        return invoices.stream().map(invoice -> new InvoiceResponse(
+                invoice.id(),
+                invoice.invoiceNumber(),
+                invoice.totalAmount(),
+                invoice.discount(),
+                invoice.netAmount(),
+                invoice.paidAmount(),
+                invoice.remainingAmount(),
+                invoice.status(),
+                invoice.createdAt(),
+                invoice.items().stream().map(item -> new InvoiceLineResponse(
+                        item.type(),
+                        item.label(),
+                        item.price(),
+                        item.quantity()
+                )).toList()
+        )).toList();
+    }
 }
 

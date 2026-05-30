@@ -464,6 +464,14 @@ class PatientControllerTest {
         mockMvc.perform(get("/api/v1/visits/{id}/invoice/pdf", visitId))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/pdf"));
+
+        mockMvc.perform(get("/api/v1/visits/{id}/invoices", visitId)
+                        .with(user("doctor")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].invoiceNumber").exists())
+                .andExpect(jsonPath("$[0].totalAmount").value(5000.0))
+                .andExpect(jsonPath("$[0].status").value("PAID"))
+                .andExpect(jsonPath("$[0].items[0].label").value("Consultation médicale"));
     }
 
     @Test

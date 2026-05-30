@@ -9,6 +9,14 @@ class ConsultationMapper {
             ConsultationEntity consultation,
             VisitStatus visitStatus
     ) {
+        return toResponse(consultation, visitStatus, false);
+    }
+
+    ConsultationResponse toResponse(
+            ConsultationEntity consultation,
+            VisitStatus visitStatus,
+            boolean hasPrescription
+    ) {
         return new ConsultationResponse(
                 consultation.id(),
                 consultation.visitId(),
@@ -22,7 +30,8 @@ class ConsultationMapper {
                 consultation.decision(),
                 visitStatus,
                 consultation.validatedAt(),
-                consultation.createdAt()
+                consultation.createdAt(),
+                hasPrescription
         );
     }
 }

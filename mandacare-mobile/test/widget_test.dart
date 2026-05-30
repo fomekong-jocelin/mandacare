@@ -13,6 +13,7 @@ import 'package:mandacare_mobile/features/patients/domain/patient_timeline_item.
 import 'package:mandacare_mobile/features/patients/domain/vitals_summary.dart';
 import 'package:mandacare_mobile/features/consultations/domain/exam.dart';
 import 'package:mandacare_mobile/features/cashdesk/domain/invoice_preview.dart';
+import 'package:mandacare_mobile/features/cashdesk/domain/invoice.dart';
 import 'package:mandacare_mobile/app/mandacare_app.dart';
 
 void main() {
@@ -526,8 +527,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Résultat de laboratoire'), findsOneWidget);
+    final labResultsFinder = find.byKey(const ValueKey('lab-results-field'));
+    await tester.scrollUntilVisible(labResultsFinder, 80.0);
+    await tester.pumpAndSettle();
     await tester.enterText(
-      find.byKey(const ValueKey('lab-results-field')),
+      labResultsFinder,
       'GB 7200/mm3, Hb 13 g/dL',
     );
     await tester.tap(find.byKey(const ValueKey('submit-lab-results-button')));
@@ -885,6 +889,40 @@ class FakePatientGateway implements PatientGateway {
         ),
       ],
     );
+  }
+
+  @override
+  Future<List<Invoice>> getInvoices({
+    required AuthSession session,
+    required String visitId,
+  }) async {
+    return [
+      Invoice(
+        id: 'invoice-123',
+        invoiceNumber: 'FAC-TEST',
+        totalAmount: 9000.0,
+        discount: 0.0,
+        netAmount: 9000.0,
+        paidAmount: 9000.0,
+        remainingAmount: 0.0,
+        status: 'PAID',
+        createdAt: DateTime.now(),
+        items: const [
+          InvoiceLine(
+            type: 'BENEFIT',
+            label: 'Consultation médicale',
+            price: 5000.0,
+            quantity: 1,
+          ),
+          InvoiceLine(
+            type: 'EXAM',
+            label: 'NFS',
+            price: 4000.0,
+            quantity: 1,
+          ),
+        ],
+      ),
+    ];
   }
 
   PatientStatus? statusFor(String visitId) => _visitStatuses[visitId];

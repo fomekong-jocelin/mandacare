@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../consultations/domain/consultation_decision.dart';
 import '../../consultations/domain/prescription.dart';
@@ -10,10 +9,12 @@ import '../../../shared/presentation/widgets/metric_strip.dart';
 import '../../../shared/presentation/widgets/page_header.dart';
 import '../../auth/domain/auth_session.dart';
 import '../../cashdesk/domain/invoice_preview.dart';
+import '../../cashdesk/domain/invoice.dart';
 import '../../cashdesk/presentation/cashdesk_payment_sheet.dart';
 import '../data/patient_gateway.dart';
 import '../domain/patient_summary.dart';
 import '../domain/patient_timeline_item.dart';
+import '../domain/vitals_summary.dart';
 import '../../consultations/presentation/consultation_form_screen.dart';
 import '../../consultations/presentation/lab_results_form_screen.dart';
 import '../../consultations/presentation/vitals_form_screen.dart';
@@ -99,278 +100,23 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     }
   }
 
-  Future<void> _viewPrescriptionDetail(PatientTimelineItem item) async {
-    final consultation = item.consultation;
-    if (consultation == null) {
-      return;
-    }
-
-    setState(() => _loading = true);
-    try {
-      final Prescription? prescription = await widget.patientGateway
-          .getPrescription(
+  void _showVisitDetailSheet(BuildContext context, PatientTimelineItem item) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.85,
+          child: _VisitDetailSheet(
             session: widget.session,
-            consultationId: consultation.id,
-          );
-      if (!mounted) {
-        return;
-      }
-      setState(() => _loading = false);
-
-      if (prescription == null) {
-        _showMessage('Aucune ordonnance associée à cette consultation.');
-        return;
-      }
-
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (context) {
-          return Container(
-            height: MediaQuery.of(context).size.height * 0.75,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Ordonnance ${prescription.prescriptionNumber}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.deepHealthBlue,
-                              ),
-                            ),
-                            Text(
-                              'Réf. Consultation : ${consultation.diagnosis}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      if (prescription.items.isEmpty)
-                        const Center(
-                          child: Text(
-                            'Aucun médicament prescrit dans cette ordonnance.',
-                          ),
-                        )
-                      else
-                        ...prescription.items.map((drug) {
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.lightBackground.withValues(
-                                alpha: 0.15,
-                              ),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: AppColors.border.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.medication_rounded,
-                                      color: AppColors.medicalGreen,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        drug.drugName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14.5,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 12,
-                                  runSpacing: 4,
-                                  children: [
-                                    if (drug.form != null)
-                                      _DrugDetailTag(
-                                        label: 'Forme: ${drug.form}',
-                                      ),
-                                    if (drug.dosage != null)
-                                      _DrugDetailTag(
-                                        label: 'Dosage: ${drug.dosage}',
-                                      ),
-                                    if (drug.frequency != null)
-                                      _DrugDetailTag(
-                                        label: 'Fréq: ${drug.frequency}',
-                                      ),
-                                    if (drug.duration != null)
-                                      _DrugDetailTag(
-                                        label: 'Durée: ${drug.duration}',
-                                      ),
-                                    if (drug.quantity != null)
-                                      _DrugDetailTag(
-                                        label: 'Qté: ${drug.quantity} boîtes',
-                                      ),
-                                  ],
-                                ),
-                                if (drug.instructions != null) ...[
-                                  const SizedBox(height: 8),
-                                  const Divider(height: 12),
-                                  Text(
-                                    'Instructions: ${drug.instructions}',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontStyle: FontStyle.italic,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        }),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: FilledButton.icon(
-                          onPressed: () async {
-                            String relativeUrl =
-                                prescription.pdfUrl ??
-                                '/consultations/${consultation.id}/prescription/pdf';
-                            final baseUrl =
-                                widget.patientGateway is BackendPatientGateway
-                                ? (widget.patientGateway
-                                          as BackendPatientGateway)
-                                      .apiClient
-                                      .baseUrl
-                                : "http://localhost:8080/api/v1";
-
-                            if (relativeUrl.startsWith('/api/v1/')) {
-                              if (baseUrl.endsWith('/api/v1')) {
-                                relativeUrl = relativeUrl.substring(7);
-                              }
-                            } else if (!relativeUrl.startsWith('/')) {
-                              relativeUrl = '/$relativeUrl';
-                            }
-
-                            final fullUrl = '$baseUrl$relativeUrl';
-                            final url = Uri.parse(fullUrl);
-
-                            try {
-                              final success = await launchUrl(
-                                url,
-                                mode: LaunchMode.externalApplication,
-                              );
-                              if (!success) {
-                                _showMessage('Impossible d\'ouvrir le PDF.');
-                              }
-                            } catch (_) {
-                              _showMessage('Impossible d\'ouvrir le PDF.');
-                            }
-                          },
-                          icon: const Icon(Icons.print_rounded),
-                          label: const Text('Prévisualiser & Imprimer'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.medicalGreen,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(48),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: () async {
-                          String relativeUrl =
-                              prescription.pdfUrl ??
-                              '/consultations/${consultation.id}/prescription/pdf';
-                          final baseUrl =
-                              widget.patientGateway is BackendPatientGateway
-                              ? (widget.patientGateway as BackendPatientGateway)
-                                    .apiClient
-                                    .baseUrl
-                              : "http://localhost:8080/api/v1";
-
-                          if (relativeUrl.startsWith('/api/v1/')) {
-                            if (baseUrl.endsWith('/api/v1')) {
-                              relativeUrl = relativeUrl.substring(7);
-                            }
-                          } else if (!relativeUrl.startsWith('/')) {
-                            relativeUrl = '/$relativeUrl';
-                          }
-
-                          final fullUrl = '$baseUrl$relativeUrl';
-                          await Clipboard.setData(ClipboardData(text: fullUrl));
-                          _showMessage(
-                            'Lien PDF de l\'ordonnance copié dans le presse-papiers.',
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(48, 48),
-                          padding: EdgeInsets.zero,
-                        ),
-                        child: const Icon(Icons.copy_all_rounded),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    } catch (_) {
-      setState(() => _loading = false);
-      _showMessage('Impossible de charger les détails de l\'ordonnance.');
-    }
+            patientGateway: widget.patientGateway,
+            patient: widget.patient,
+            item: item,
+          ),
+        );
+      },
+    );
   }
 
   void _showMessage(String message) {
@@ -745,7 +491,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                           ? 'Imprimer / Voir l\'ordonnance'
                           : 'Aucune ordonnance rédigée',
                       onTap: latestConsult != null
-                          ? () => _viewPrescriptionDetail(latestConsult)
+                          ? () => _showVisitDetailSheet(context, latestConsult)
                           : null,
                     );
                   })(),
@@ -798,9 +544,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                         title: _timelineTitle(item),
                         subtitle: _timelineSubtitle(item),
                         date: _formatDate(item.arrivalAt),
-                        onTap: item.consultation != null
-                            ? () => _viewPrescriptionDetail(item)
-                            : null,
+                        onTap: () => _showVisitDetailSheet(context, item),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -1015,8 +759,23 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     final consultation = item.consultation;
     final vitals = item.vitals;
 
+    final List<String> indicators = [];
+    if (consultation != null && consultation.hasPrescription) {
+      indicators.add('📎 Ordonnance');
+    }
+    if (item.labResult != null) {
+      indicators.add('🔬 Labo');
+    }
+    if (item.status == PatientStatus.released ||
+        item.status == PatientStatus.lab ||
+        item.status == PatientStatus.cashDesk) {
+      indicators.add('🧾 Reçu');
+    }
+
+    final indicatorStr = indicators.isNotEmpty ? ' (${indicators.join(' · ')})' : '';
+
     if (consultation != null) {
-      return 'Diagnostic : ${consultation.diagnosis}';
+      return 'Diagnostic : ${consultation.diagnosis}$indicatorStr';
     }
     if (vitals != null) {
       final temp = vitals.temperature != null
@@ -1026,9 +785,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           vitals.systolicPressure != null && vitals.diastolicPressure != null
           ? '${vitals.systolicPressure}/${vitals.diastolicPressure} mmHg'
           : '--';
-      return 'T°: $temp · PA: $bp';
+      return 'T°: $temp · PA: $bp$indicatorStr';
     }
-    return 'Service : ${item.targetService} · Statut : ${item.status.label}';
+    return 'Service : ${item.targetService} · Statut : ${item.status.label}$indicatorStr';
   }
 
   String _formatDate(DateTime dt) {
@@ -1421,27 +1180,539 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _DrugDetailTag extends StatelessWidget {
-  const _DrugDetailTag({required this.label});
+class _VisitDetailSheet extends StatefulWidget {
+  const _VisitDetailSheet({
+    required this.session,
+    required this.patientGateway,
+    required this.patient,
+    required this.item,
+  });
 
-  final String label;
+  final AuthSession session;
+  final PatientGateway patientGateway;
+  final PatientSummary patient;
+  final PatientTimelineItem item;
+
+  @override
+  State<_VisitDetailSheet> createState() => _VisitDetailSheetState();
+}
+
+class _VisitDetailSheetState extends State<_VisitDetailSheet> {
+  Prescription? _prescription;
+  bool _loadingPrescription = false;
+  Invoice? _invoice;
+  bool _loadingInvoice = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.item.consultation?.hasPrescription == true) {
+      _loadPrescription();
+    }
+    final hasInvoice = widget.item.status == PatientStatus.released ||
+        widget.item.status == PatientStatus.lab ||
+        widget.item.status == PatientStatus.cashDesk;
+    if (hasInvoice) {
+      _loadInvoice();
+    }
+  }
+
+  Future<void> _loadInvoice() async {
+    setState(() => _loadingInvoice = true);
+    try {
+      final list = await widget.patientGateway.getInvoices(
+        session: widget.session,
+        visitId: widget.item.visitId,
+      );
+      if (list.isNotEmpty && mounted) {
+        setState(() {
+          _invoice = list.first;
+          _loadingInvoice = false;
+        });
+      } else {
+        if (mounted) {
+          setState(() => _loadingInvoice = false);
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingInvoice = false);
+      }
+    }
+  }
+
+  Future<void> _loadPrescription() async {
+    setState(() => _loadingPrescription = true);
+    try {
+      final prescription = await widget.patientGateway.getPrescription(
+        session: widget.session,
+        consultationId: widget.item.consultation!.id,
+      );
+      if (mounted) {
+        setState(() {
+          _prescription = prescription;
+          _loadingPrescription = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingPrescription = false);
+      }
+    }
+  }
+
+  Future<void> _openPdf(String relativeUrl) async {
+    final baseUrl = widget.patientGateway is BackendPatientGateway
+        ? (widget.patientGateway as BackendPatientGateway).apiClient.baseUrl
+        : "http://localhost:8080/api/v1";
+
+    var fullUrl = relativeUrl;
+    if (!relativeUrl.startsWith('http://') && !relativeUrl.startsWith('https://')) {
+      if (relativeUrl.startsWith('/api/v1/')) {
+        if (baseUrl.endsWith('/api/v1')) {
+          fullUrl = '$baseUrl${relativeUrl.substring(7)}';
+        } else {
+          fullUrl = '$baseUrl$relativeUrl';
+        }
+      } else {
+        if (!relativeUrl.startsWith('/')) {
+          relativeUrl = '/$relativeUrl';
+        }
+        fullUrl = '$baseUrl$relativeUrl';
+      }
+    }
+
+    final url = Uri.parse(fullUrl);
+    try {
+      final success = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!success) {
+        _showMessage('Impossible d\'ouvrir le PDF.');
+      }
+    } catch (_) {
+      _showMessage('Impossible d\'ouvrir le PDF.');
+    }
+  }
+
+  void _showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final item = widget.item;
+    final vitals = item.vitals;
+    final consultation = item.consultation;
+    final labResult = item.labResult;
+
+    final hasInvoice = item.status == PatientStatus.released ||
+        item.status == PatientStatus.lab ||
+        item.status == PatientStatus.cashDesk;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.deepHealthBlue.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(6),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.deepHealthBlue,
-        ),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Visite du ${_formatDate(item.arrivalAt)}',
+                        style: const TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.deepHealthBlue,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Motif : ${item.reason}',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (vitals != null) ...[
+                  _buildSectionHeader('Constantes médicales', Icons.monitor_heart_rounded),
+                  const SizedBox(height: 8),
+                  _buildVitalsCard(vitals),
+                  const SizedBox(height: 18),
+                ],
+                if (consultation != null) ...[
+                  _buildSectionHeader('Consultation médicale', Icons.assignment_rounded),
+                  const SizedBox(height: 8),
+                  _buildConsultationCard(consultation),
+                  const SizedBox(height: 18),
+                ],
+                if (labResult != null) ...[
+                  _buildSectionHeader('Résultats de laboratoire', Icons.science_rounded),
+                  const SizedBox(height: 8),
+                  _buildLabResultsCard(labResult),
+                  const SizedBox(height: 18),
+                ],
+                if (hasInvoice) ...[
+                  _buildSectionHeader('Facturation & Encaissement', Icons.payments_rounded),
+                  const SizedBox(height: 8),
+                  _buildInvoiceCard(item.visitId),
+                  const SizedBox(height: 18),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.deepHealthBlue, size: 19),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14.5,
+            fontWeight: FontWeight.bold,
+            color: AppColors.deepHealthBlue,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVitalsCard(VitalsSummary vitals) {
+    final temp = vitals.temperature != null ? '${vitals.temperature}°C' : '--';
+    final bp = vitals.systolicPressure != null && vitals.diastolicPressure != null
+        ? '${vitals.systolicPressure}/${vitals.diastolicPressure} mmHg'
+        : '--';
+    final pulse = vitals.pulse != null ? '${vitals.pulse} bpm' : '--';
+    final weight = vitals.weight != null ? '${vitals.weight} kg' : '--';
+    final height = vitals.height != null ? '${vitals.height} cm' : '--';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.lightBackground.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildVitalItem('Température', temp),
+              _buildVitalItem('Tension Artérielle', bp),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildVitalItem('Pouls', pulse),
+              _buildVitalItem('Poids / Taille', '$weight / $height'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVitalItem(String label, String value) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 11.5, color: Colors.grey[600])),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConsultationCard(PatientConsultationSummary consultation) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.lightBackground.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTextInfo('Symptômes', consultation.symptoms),
+          const SizedBox(height: 10),
+          _buildTextInfo('Examen Clinique', consultation.clinicalExam),
+          const SizedBox(height: 10),
+          _buildTextInfo('Diagnostic final', consultation.diagnosis),
+          if (consultation.advice != null && consultation.advice!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _buildTextInfo('Conduite à tenir / Conseils', consultation.advice!),
+          ],
+          if (consultation.hasPrescription) ...[
+            const Divider(height: 20),
+            const Text(
+              'Ordonnance médicale',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.deepHealthBlue),
+            ),
+            const SizedBox(height: 8),
+            if (_loadingPrescription)
+              const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
+            else if (_prescription != null) ...[
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _prescription!.items.map((item) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.circle, size: 6, color: AppColors.medicalGreen),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${item.drugName} - ${item.dosage ?? ""} (${item.form ?? ""})',
+                            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () {
+                  final pdfUrl = _prescription!.pdfUrl ?? '/consultations/${consultation.id}/prescription/pdf';
+                  _openPdf(pdfUrl);
+                },
+                icon: const Icon(Icons.print_rounded, size: 16),
+                label: const Text('Imprimer l\'ordonnance'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.medicalGreen,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(38),
+                ),
+              ),
+            ] else
+              const Text('Impossible de charger l\'ordonnance.', style: TextStyle(fontSize: 12, color: AppColors.error)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextInfo(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.deepHealthBlue),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value.isEmpty ? '—' : value,
+          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLabResultsCard(PatientLabResultSummary labResult) {
+    final badgeColor = labResult.isNormal ? AppColors.medicalGreen : AppColors.error;
+    final badgeText = labResult.isNormal ? 'Résultats normaux' : 'Résultats anormaux / Pathologie';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.lightBackground.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Type d\'examen', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.deepHealthBlue)),
+                  const SizedBox(height: 2),
+                  Text(labResult.examType, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: badgeColor.withValues(alpha: 0.20)),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: badgeColor),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildTextInfo('Analyses / Résultats saisis', labResult.results),
+          if (labResult.observations != null && labResult.observations!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildTextInfo('Observations du laboratoire', labResult.observations!),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Date prélèvement : ${_formatDate(labResult.sampleDate)}',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+              Text(
+                'N° Dossier LAB : ${labResult.dossierNumber ?? "—"}',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvoiceCard(String visitId) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.lightBackground.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: AppColors.medicalGreen, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Paiement encaissé avec succès',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+            ],
+          ),
+          if (_loadingInvoice) ...[
+            const SizedBox(height: 12),
+            const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+          ] else if (_invoice != null) ...[
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'N° Reçu : ${_invoice!.invoiceNumber}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deepHealthBlue),
+                ),
+                Text(
+                  _formatDate(_invoice!.createdAt),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ..._invoice!.items.map((line) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${line.label} (x${line.quantity})',
+                        style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary),
+                      ),
+                    ),
+                    Text(
+                      '${line.price.toStringAsFixed(0)} FCFA',
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const Divider(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Montant total payé :',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+                Text(
+                  '${_invoice!.paidAmount.toStringAsFixed(0)} FCFA',
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.medicalGreen),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () => _openPdf('/visits/$visitId/invoice/pdf'),
+            icon: const Icon(Icons.receipt_long_rounded, size: 16),
+            label: const Text('Visualiser & Imprimer le reçu'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.premiumGold,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(38),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    final timeStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} à $timeStr';
   }
 }

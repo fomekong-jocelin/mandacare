@@ -9,4 +9,5 @@ interface PrescriptionRepository extends JpaRepository<PrescriptionEntity, UUID>
     Optional<PrescriptionEntity> findByConsultationId(UUID consultationId);
     List<PrescriptionEntity> findAllByPatientIdOrderByCreatedAtDesc(UUID patientId);
     boolean existsByPrescriptionNumber(String prescriptionNumber);
+    boolean existsByConsultationId(UUID consultationId);
 }
