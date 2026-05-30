@@ -10,6 +10,7 @@ import '../../consultations/domain/consultation_decision.dart';
 import '../../patients/data/patient_gateway.dart';
 import '../../patients/domain/patient_summary.dart';
 import '../../patients/presentation/patient_detail_screen.dart';
+import 'cashdesk_payment_sheet.dart';
 
 class CashDeskScreen extends StatefulWidget {
   const CashDeskScreen({
@@ -133,11 +134,21 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
       return;
     }
 
+    final payload = await showCashDeskPaymentSheet(
+      context,
+      patientName: item.patient.fullName,
+      targetLabel: _targetLabel(item.targetStatus),
+    );
+    if (payload == null) {
+      return;
+    }
+
     setState(() => _completingVisitId = visitId);
     try {
       final updatedPatient = await widget.patientGateway.completeCashDesk(
         session: widget.session,
         visitId: visitId,
+        payload: payload,
       );
       if (!mounted) {
         return;

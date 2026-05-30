@@ -11,11 +11,21 @@ class VisitService {
 
     private final VisitRepository visits;
     private final ConsultationRepository consultations;
+    private final InvoiceRepository invoices;
+    private final PaymentRepository payments;
     private final PatientMapper mapper;
 
-    VisitService(VisitRepository visits, ConsultationRepository consultations, PatientMapper mapper) {
+    VisitService(
+            VisitRepository visits,
+            ConsultationRepository consultations,
+            InvoiceRepository invoices,
+            PaymentRepository payments,
+            PatientMapper mapper
+    ) {
         this.visits = visits;
         this.consultations = consultations;
+        this.invoices = invoices;
+        this.payments = payments;
         this.mapper = mapper;
     }
 
@@ -27,7 +37,7 @@ class VisitService {
     }
 
     @Transactional
-    PatientResponse completeCashDesk(UUID visitId) {
+    PatientResponse completeCashDesk(UUID visitId, CashDeskPaymentRequest request) {
         VisitEntity visit = findVisit(visitId);
         if (visit.status() != VisitStatus.CASH_DESK) {
             throw new BusinessException(
@@ -51,8 +61,22 @@ class VisitService {
             );
         }
 
+        InvoiceEntity invoice = invoices.save(InvoiceEntity.paidFor(
+                visit,
+                nextInvoiceNumber(),
+                request.amount()
+        ));
+        payments.save(PaymentEntity.validatedFor(invoice, request));
         visit.changeStatus(consultation.decision().statusAfterCashDesk());
         return mapper.toResponse(visit.patient(), visit);
+    }
+
+    private String nextInvoiceNumber() {
+        String invoiceNumber;
+        do {
+            invoiceNumber = "FAC-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        } while (invoices.existsByInvoiceNumber(invoiceNumber));
+        return invoiceNumber;
     }
 
     private VisitEntity findVisit(UUID visitId) {

@@ -193,26 +193,22 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Historique'), findsOneWidget);
-    expect(find.text('Nouvelle visite'), findsOneWidget);
+    expect(find.text('Saisir les constantes'), findsOneWidget);
   });
 
-  testWidgets('opens a new visit from patient detail', (tester) async {
+  testWidgets('opens vitals form from patient detail', (tester) async {
     await tester.pumpWidget(appWithSession());
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-patients')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Awa Diop').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Nouvelle visite'));
+    await tester.tap(find.text('Saisir les constantes'));
     await tester.pumpAndSettle();
 
-    expect(find.text("Motif d'arrivée"), findsOneWidget);
-
-    await tester.enterText(find.byType(TextFormField), 'Contrôle du jour');
-    await tester.tap(find.byKey(const ValueKey('save-visit-button')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Dossiers actifs et file du jour'), findsOneWidget);
+    expect(find.text('Constantes'), findsWidgets);
+    expect(find.text('Signes vitaux'), findsOneWidget);
+    expect(find.byKey(const ValueKey('save-vitals-button')), findsOneWidget);
   });
 
   testWidgets('opens consultation cash desk and more screens', (tester) async {
@@ -367,6 +363,13 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('cashdesk-complete-$visitId')));
     await tester.pumpAndSettle();
+    expect(find.text('Encaisser et orienter'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('cashdesk-payment-amount')),
+      '22000',
+    );
+    await tester.tap(find.byKey(const ValueKey('cashdesk-payment-submit')));
+    await tester.pumpAndSettle();
 
     expect(patientGateway.statusFor(visitId), PatientStatus.lab);
     expect(find.text('Mamadou Sarr'), findsNothing);
@@ -463,7 +466,9 @@ class FakePatientGateway implements PatientGateway {
   Future<PatientSummary> completeCashDesk({
     required AuthSession session,
     required String visitId,
+    required CreateCashDeskPaymentPayload payload,
   }) async {
+    _paymentsByVisit[visitId] = payload;
     _visitStatuses[visitId] =
         _consultationDecisions[visitId] == ConsultationDecision.sendToLab
         ? PatientStatus.lab
@@ -587,6 +592,7 @@ class FakePatientGateway implements PatientGateway {
 
   final Map<String, CreatePrescriptionPayload> _prescriptionsByConsultation =
       {};
+  final Map<String, CreateCashDeskPaymentPayload> _paymentsByVisit = {};
 
   @override
   Future<Prescription?> getPrescription({

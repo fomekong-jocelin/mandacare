@@ -36,6 +36,7 @@ abstract class PatientGateway {
   Future<PatientSummary> completeCashDesk({
     required AuthSession session,
     required String visitId,
+    required CreateCashDeskPaymentPayload payload,
   });
 
   Future<void> createVitals({
@@ -154,10 +155,11 @@ class BackendPatientGateway implements PatientGateway {
   Future<PatientSummary> completeCashDesk({
     required AuthSession session,
     required String visitId,
+    required CreateCashDeskPaymentPayload payload,
   }) async {
     final response = await apiClient.patchJson(
       '/visits/$visitId/cash-desk/complete',
-      const <String, dynamic>{},
+      payload.toJson(),
       token: session.accessToken,
     );
     return _PatientSummaryMapper.fromJson(response);
@@ -347,6 +349,23 @@ class CreateVitalsPayload {
   }
 
   bool get hasMeasurement => toJson().isNotEmpty;
+}
+
+class CreateCashDeskPaymentPayload {
+  const CreateCashDeskPaymentPayload({
+    required this.amount,
+    required this.mode,
+    this.reference,
+  });
+
+  final double amount;
+  final String mode;
+  final String? reference;
+
+  Map<String, dynamic> toJson() {
+    return {'amount': amount, 'mode': mode, 'reference': reference?.trim()}
+      ..removeWhere((_, value) => value == null || value == '');
+  }
 }
 
 class _PatientSummaryMapper {

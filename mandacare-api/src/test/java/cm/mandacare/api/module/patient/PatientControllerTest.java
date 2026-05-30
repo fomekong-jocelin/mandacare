@@ -34,6 +34,12 @@ class PatientControllerTest {
     @Autowired
     private AuditLogRepository auditLogs;
 
+    @Autowired
+    private InvoiceRepository invoices;
+
+    @Autowired
+    private PaymentRepository payments;
+
     @Test
     void createsPatientWithInitialVisit() throws Exception {
         mockMvc.perform(post("/api/v1/patients")
@@ -312,11 +318,19 @@ class PatientControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
+        long initialInvoicesCount = invoices.count();
+        long initialPaymentsCount = payments.count();
+
         mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
-                        .with(user("cashier")))
+                        .with(user("cashier"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cashPaymentJson()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestVisit.id").value(visitId))
                 .andExpect(jsonPath("$.latestVisit.status").value("RELEASED"));
+
+        org.junit.jupiter.api.Assertions.assertEquals(initialInvoicesCount + 1, invoices.count());
+        org.junit.jupiter.api.Assertions.assertEquals(initialPaymentsCount + 1, payments.count());
     }
 
     @Test
@@ -347,10 +361,47 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
-                        .with(user("cashier")))
+                        .with(user("cashier"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cashPaymentJson()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestVisit.id").value(visitId))
                 .andExpect(jsonPath("$.latestVisit.status").value("LAB"));
+    }
+
+    @Test
+    void rejectsCashDeskCompletionWithoutPayment() throws Exception {
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Cash", "Required", "+221 70 000 00 69")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Contrôle",
+                                  "clinicalExam": "Patient stable",
+                                  "diagnosis": "Sortie possible",
+                                  "advice": "Surveillance",
+                                  "decision": "RELEASE_PATIENT"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
+                        .with(user("cashier"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     @Test
@@ -704,5 +755,15 @@ class PatientControllerTest {
                   "targetService": "CONSULTATION"
                 }
                 """.formatted(firstName, lastName, phone);
+    }
+
+    private String cashPaymentJson() {
+        return """
+                {
+                  "amount": 15000,
+                  "mode": "CASH",
+                  "reference": "RECU-TEST"
+                }
+                """;
     }
 }

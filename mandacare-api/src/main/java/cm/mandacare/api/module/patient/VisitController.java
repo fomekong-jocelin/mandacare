@@ -27,7 +27,10 @@ class VisitController {
     }
 
     @PatchMapping("/{id}/cash-desk/complete")
-    PatientResponse completeCashDesk(@PathVariable UUID id) {
-        return service.completeCashDesk(id);
+    PatientResponse completeCashDesk(
+            @PathVariable UUID id,
+            @Valid @RequestBody CashDeskPaymentRequest request
+    ) {
+        return service.completeCashDesk(id, request);
     }
 }

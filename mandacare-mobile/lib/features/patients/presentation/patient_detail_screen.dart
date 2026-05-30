@@ -9,6 +9,7 @@ import '../../../shared/presentation/widgets/action_tile.dart';
 import '../../../shared/presentation/widgets/metric_strip.dart';
 import '../../../shared/presentation/widgets/page_header.dart';
 import '../../auth/domain/auth_session.dart';
+import '../../cashdesk/presentation/cashdesk_payment_sheet.dart';
 import '../data/patient_gateway.dart';
 import '../domain/patient_summary.dart';
 import '../domain/patient_timeline_item.dart';
@@ -409,10 +410,22 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       return;
     }
 
+    final payload = await showCashDeskPaymentSheet(
+      context,
+      patientName: widget.patient.fullName,
+      targetLabel: _statusAfterCashDesk == PatientStatus.lab
+          ? 'vers labo'
+          : 'vers sortie',
+    );
+    if (payload == null) {
+      return;
+    }
+
     try {
       await widget.patientGateway.completeCashDesk(
         session: widget.session,
         visitId: latestVisit.visitId,
+        payload: payload,
       );
       if (mounted) {
         await _loadTimeline();
