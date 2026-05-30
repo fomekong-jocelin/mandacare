@@ -155,15 +155,19 @@ class _TariffManagementScreenState extends State<TariffManagementScreen> {
                     else
                       SliverPadding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                        sliver: SliverList.builder(
-                          itemCount: _countSlots(sortedCats, grouped),
-                          itemBuilder: (context, index) {
-                            return _buildSlot(
-                              index,
-                              sortedCats,
-                              grouped,
-                            );
-                          },
+                        sliver: SliverList.list(
+                          children: [
+                            for (final cat in sortedCats)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: _CollapsibleCategory(
+                                  key: ValueKey('$_activeType-$cat'),
+                                  label: cat,
+                                  items: grouped[cat] ?? [],
+                                  onTap: _openForm,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                   ],
@@ -176,52 +180,7 @@ class _TariffManagementScreenState extends State<TariffManagementScreen> {
     );
   }
 
-  // Compte total de slots (headers + items)
-  int _countSlots(
-    List<String> cats,
-    Map<String, List<TariffItem>> grouped,
-  ) {
-    int count = 0;
-    for (final cat in cats) {
-      count += 1 + (grouped[cat]?.length ?? 0);
-    }
-    return count;
-  }
 
-  Widget _buildSlot(
-    int index,
-    List<String> sortedCats,
-    Map<String, List<TariffItem>> grouped,
-  ) {
-    int cursor = 0;
-    for (final cat in sortedCats) {
-      final catItems = grouped[cat] ?? [];
-      if (index == cursor) {
-        // Header de catégorie
-        return Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 6),
-          child: _CategoryHeader(
-            label: cat,
-            count: catItems.length,
-          ),
-        );
-      }
-      cursor++;
-      final itemIndex = index - cursor;
-      if (itemIndex < catItems.length) {
-        final item = catItems[itemIndex];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _TariffCard(
-            item: item,
-            onTap: () => _openForm(item),
-          ),
-        );
-      }
-      cursor += catItems.length;
-    }
-    return const SizedBox.shrink();
-  }
 
   List<TariffItem> _applySearch(List<TariffItem> items, String q) {
     if (q.trim().isEmpty) return items;
@@ -557,56 +516,245 @@ class _SearchFieldState extends State<_SearchField> {
   }
 }
 
-// ─── Category header ──────────────────────────────────────────────────────────
+// ─── Catégorie accordéon ──────────────────────────────────────────────────────
 
-class _CategoryHeader extends StatelessWidget {
-  const _CategoryHeader({required this.label, required this.count});
+class _CollapsibleCategory extends StatefulWidget {
+  const _CollapsibleCategory({
+    required this.label,
+    required this.items,
+    required this.onTap,
+    super.key,
+  });
 
   final String label;
-  final int count;
+  final List<TariffItem> items;
+  final void Function(TariffItem) onTap;
+
+  @override
+  State<_CollapsibleCategory> createState() => _CollapsibleCategoryState();
+}
+
+class _CollapsibleCategoryState extends State<_CollapsibleCategory>
+    with SingleTickerProviderStateMixin {
+  bool _expanded = false;
+  late final AnimationController _ctrl;
+  late final Animation<double> _rotate;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
+    _rotate = Tween<double>(begin: 0, end: 0.5).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    if (_expanded) {
+      _ctrl.forward();
+    } else {
+      _ctrl.reverse();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppColors.medicalGreen.withValues(alpha: 0.09),
-            borderRadius: BorderRadius.circular(7),
+    final count = widget.items.length;
+    final activeCount = widget.items.where((i) => i.active).length;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.40)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.deepHealthBlue.withValues(alpha: 0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.medicalGreen,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
-                  letterSpacing: 0.6,
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── En-tête cliquable ──────────────────────────────────────────
+          Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: _toggle,
+              borderRadius: BorderRadius.circular(14),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+                child: Row(
+                  children: [
+                    // Icône catégorie
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.medicalGreen.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: const Icon(
+                        Icons.folder_rounded,
+                        color: AppColors.medicalGreen,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Label + compteur
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13.5,
+                                  height: 1.1,
+                                ),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              _CatBadge(
+                                label: '$activeCount actif${activeCount > 1 ? 's' : ''}',
+                                color: AppColors.medicalGreen,
+                              ),
+                              if (count - activeCount > 0) ...[
+                                const SizedBox(width: 6),
+                                _CatBadge(
+                                  label: '${count - activeCount} inactif${count - activeCount > 1 ? 's' : ''}',
+                                  color: AppColors.textSecondary,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Compteur total
+                    Text(
+                      '$count',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppColors.deepHealthBlue,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Chevron animé
+                    RotationTransition(
+                      turns: _rotate,
+                      child: const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 22,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '$count acte${count > 1 ? 's' : ''}',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary.withValues(alpha: 0.75),
-                fontSize: 11,
               ),
-        ),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.only(left: 10),
-            height: 1,
-            color: AppColors.border.withValues(alpha: 0.30),
+            ),
           ),
-        ),
-      ],
+
+          // ── Contenu dépliable ──────────────────────────────────────────
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(14),
+            ),
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: _expanded
+                  ? FadeTransition(
+                      opacity: _fade,
+                      child: Column(
+                        children: [
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: AppColors.border.withValues(alpha: 0.35),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                            child: Column(
+                              children: [
+                                for (int i = 0;
+                                    i < widget.items.length;
+                                    i++) ...[
+                                  if (i > 0) const SizedBox(height: 6),
+                                  _TariffCard(
+                                    item: widget.items[i],
+                                    onTap: () =>
+                                        widget.onTap(widget.items[i]),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ─── Tariff card ──────────────────────────────────────────────────────────────
+class _CatBadge extends StatelessWidget {
+  const _CatBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 10.5,
+            ),
+      ),
+    );
+  }
+}
+
+// ─── Carte d'acte tarifaire ───────────────────────────────────────────────────
 
 class _TariffCard extends StatelessWidget {
   const _TariffCard({required this.item, required this.onTap});
@@ -617,115 +765,128 @@ class _TariffCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = item.active;
+    final codeColor =
+        active ? AppColors.medicalGreen : AppColors.textSecondary;
+
     return Material(
-      color: active ? AppColors.card : AppColors.lightBackground,
-      borderRadius: BorderRadius.circular(12),
+      color: active
+          ? AppColors.lightBackground.withValues(alpha: 0.70)
+          : AppColors.lightBackground.withValues(alpha: 0.40),
+      borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: active
-                  ? AppColors.border.withValues(alpha: 0.40)
-                  : AppColors.border.withValues(alpha: 0.22),
+                  ? AppColors.border.withValues(alpha: 0.30)
+                  : AppColors.border.withValues(alpha: 0.18),
             ),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color:
-                          AppColors.deepHealthBlue.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : [],
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Code pill
-              _CodePill(code: item.code, active: active),
-              const SizedBox(width: 12),
-              // Name + statut
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          Theme.of(context).textTheme.titleSmall?.copyWith(
-                                color: active
-                                    ? AppColors.textPrimary
-                                    : AppColors.textSecondary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                height: 1.25,
-                              ),
-                    ),
-                    if (!active) ...[
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.block_rounded,
-                            size: 11,
-                            color: AppColors.error.withValues(alpha: 0.65),
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            'Inactif',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.error
-                                          .withValues(alpha: 0.65),
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 11,
-                                    ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Prix + chevron
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              // ── Ligne 1 : code + prix + chevron ────────────────────────
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    _formatPrice(item.price),
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: active
-                              ? AppColors.deepHealthBlue
-                              : AppColors.textSecondary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          height: 1,
-                        ),
+                  // Badge code — une seule ligne, largeur auto
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: codeColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      item.code,
+                      maxLines: 1,
+                      overflow: TextOverflow.clip,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: codeColor,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            letterSpacing: 0.5,
+                            height: 1.0,
+                          ),
+                    ),
                   ),
-                  const SizedBox(height: 1),
-                  Text(
-                    'FCFA',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                  // Statut inactif
+                  if (!active) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Inactif',
+                        style:
+                            Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color:
+                                      AppColors.error.withValues(alpha: 0.75),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 10,
+                                ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  // Prix
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: _formatPrice(item.price),
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    color: active
+                                        ? AppColors.deepHealthBlue
+                                        : AppColors.textSecondary,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                    height: 1,
+                                  ),
                         ),
+                        TextSpan(
+                          text: ' FCFA',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 10,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.edit_outlined,
+                    size: 15,
+                    color: AppColors.textSecondary.withValues(alpha: 0.40),
                   ),
                 ],
               ),
-              const SizedBox(width: 6),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: AppColors.textSecondary.withValues(alpha: 0.45),
+              const SizedBox(height: 7),
+              // ── Ligne 2 : désignation ────────────────────────────────────
+              Text(
+                item.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: active
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary.withValues(alpha: 0.70),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13.5,
+                      height: 1.3,
+                    ),
               ),
             ],
           ),
@@ -743,40 +904,6 @@ class _TariffCard extends StatelessWidget {
       buf.write(s[i]);
     }
     return buf.toString();
-  }
-}
-
-class _CodePill extends StatelessWidget {
-  const _CodePill({required this.code, required this.active});
-
-  final String code;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final color =
-        active ? AppColors.medicalGreen : AppColors.textSecondary;
-    return Container(
-      width: 58,
-      padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        code,
-        maxLines: 2,
-        textAlign: TextAlign.center,
-        overflow: TextOverflow.visible,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-              fontSize: 10.5,
-              letterSpacing: 0.4,
-              height: 1.3,
-            ),
-      ),
-    );
   }
 }
 
