@@ -9,18 +9,22 @@ import '../../tariff/data/tariff_gateway.dart';
 import '../../tariff/presentation/tariff_management_screen.dart';
 import '../../users/data/user_gateway.dart';
 import '../../users/presentation/user_management_screen.dart';
+import '../data/clinic_gateway.dart';
+import 'clinic_settings_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({
     required this.session,
     required this.userGateway,
     required this.tariffGateway,
+    required this.clinicGateway,
     super.key,
   });
 
   final AuthSession session;
   final UserGateway userGateway;
   final TariffGateway tariffGateway;
+  final ClinicGateway clinicGateway;
 
   @override
   Widget build(BuildContext context) {
@@ -97,8 +101,8 @@ class MoreScreen extends StatelessWidget {
                       ActionTile(
                         icon: Icons.business_rounded,
                         title: 'Clinique',
-                        subtitle: 'Module non raccordé',
-                        trailing: _UnavailableBadge(),
+                        subtitle: 'Paramètres et informations officielles',
+                        onTap: () => _openClinic(context),
                       ),
                       const SizedBox(height: 10),
                       ActionTile(
@@ -133,6 +137,17 @@ class MoreScreen extends StatelessWidget {
         builder: (_) => TariffManagementScreen(
           session: session,
           tariffGateway: tariffGateway,
+        ),
+      ),
+    );
+  }
+
+  void _openClinic(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ClinicSettingsScreen(
+          session: session,
+          clinicGateway: clinicGateway,
         ),
       ),
     );

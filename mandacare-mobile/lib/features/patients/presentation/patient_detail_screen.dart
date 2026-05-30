@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../app/api/api_client.dart';
+import '../../../shared/presentation/document_preview_share_screen.dart';
 import '../../consultations/domain/consultation_decision.dart';
 import '../../consultations/domain/prescription.dart';
 
@@ -149,9 +151,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     }
 
     final now = DateTime.now();
-    return latestVisit.arrivalAt.year == now.year &&
+    final isSameDay = latestVisit.arrivalAt.year == now.year &&
         latestVisit.arrivalAt.month == now.month &&
         latestVisit.arrivalAt.day == now.day;
+    final isWithin24Hours = now.difference(latestVisit.arrivalAt).inHours.abs() < 24;
+    return isSameDay || isWithin24Hours;
   }
 
   ConsultationDecision? get _latestConsultationDecision {
@@ -329,6 +333,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           patientGateway: widget.patientGateway,
           patient: widget.patient,
           visitId: visitId,
+          existingVitals: latestItem.vitals,
         ),
       ),
     );
@@ -662,12 +667,15 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         ),
       );
     } else if (latestVisit.status == PatientStatus.lab) {
+      final isLabOrAdmin = widget.session.roleCode == 'LAB' || widget.session.roleCode == 'ADMIN';
       actions.add(
         ActionTile(
           icon: Icons.science_rounded,
           title: 'Saisir les résultats labo',
-          subtitle: 'Valider les examens puis retour consultation (Étape 5)',
-          onTap: _openLabResultsForm,
+          subtitle: isLabOrAdmin
+              ? 'Valider les examens puis retour consultation (Étape 5)'
+              : 'Réservé au personnel du laboratoire (Étape 5)',
+          onTap: isLabOrAdmin ? _openLabResultsForm : null,
         ),
       );
     } else if (latestVisit.vitals == null) {
@@ -1463,36 +1471,53 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
     final baseUrl = widget.patientGateway is BackendPatientGateway
         ? (widget.patientGateway as BackendPatientGateway).apiClient.baseUrl
         : "http://localhost:8080/api/v1";
+    final apiClient = widget.patientGateway is BackendPatientGateway
+        ? (widget.patientGateway as BackendPatientGateway).apiClient
+        : ApiClient(baseUrl: baseUrl);
 
-    var fullUrl = relativeUrl;
-    if (!relativeUrl.startsWith('http://') &&
-        !relativeUrl.startsWith('https://')) {
-      if (relativeUrl.startsWith('/api/v1/')) {
-        if (baseUrl.endsWith('/api/v1')) {
-          fullUrl = '$baseUrl${relativeUrl.substring(7)}';
-        } else {
-          fullUrl = '$baseUrl$relativeUrl';
-        }
-      } else {
-        if (!relativeUrl.startsWith('/')) {
-          relativeUrl = '/$relativeUrl';
-        }
-        fullUrl = '$baseUrl$relativeUrl';
+    String title = "Document";
+    String entityType = "OTHER";
+    String entityId = widget.patient.latestVisitId ?? "";
+
+    final parts = relativeUrl.split('/');
+    if (relativeUrl.contains('/invoice/')) {
+      title = "Reçu de paiement";
+      entityType = "INVOICE";
+      final index = parts.indexOf('visits');
+      if (index != -1 && index + 1 < parts.length) {
+        entityId = parts[index + 1];
+      }
+    } else if (relativeUrl.contains('/prescription/')) {
+      title = "Ordonnance médicale";
+      entityType = "PRESCRIPTION";
+      final index = parts.indexOf('consultations');
+      if (index != -1 && index + 1 < parts.length) {
+        entityId = parts[index + 1];
+      }
+    } else if (relativeUrl.contains('/lab-results/')) {
+      title = "Compte-rendu d'examen";
+      entityType = "LAB_RESULT";
+      final index = parts.indexOf('visits');
+      if (index != -1 && index + 1 < parts.length) {
+        entityId = parts[index + 1];
       }
     }
 
-    final url = Uri.parse(fullUrl);
-    try {
-      final success = await launchUrl(
-        url,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!success) {
-        _showMessage('Impossible d\'ouvrir le PDF.');
-      }
-    } catch (_) {
-      _showMessage('Impossible d\'ouvrir le PDF.');
-    }
+    final phone = widget.patient.phoneNumber;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DocumentPreviewShareScreen(
+          pdfUrl: relativeUrl,
+          title: title,
+          session: widget.session,
+          apiClient: apiClient,
+          entityId: entityId,
+          entityType: entityType,
+          phoneNumber: phone,
+        ),
+      ),
+    );
   }
 
   void _showMessage(String msg) {

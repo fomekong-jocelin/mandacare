@@ -9,6 +9,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,8 @@ class PatientService {
     private final ConsultationMapper consultationMapper;
     private final PrescriptionRepository prescriptionRepository;
     private final LabResultRepository labResultRepository;
+    private final AuditLogRepository auditLogs;
+    private final JdbcTemplate jdbcTemplate;
 
     PatientService(
             PatientRepository patients,
@@ -40,7 +44,9 @@ class PatientService {
             VitalsMapper vitalsMapper,
             ConsultationMapper consultationMapper,
             PrescriptionRepository prescriptionRepository,
-            LabResultRepository labResultRepository
+            LabResultRepository labResultRepository,
+            AuditLogRepository auditLogs,
+            JdbcTemplate jdbcTemplate
     ) {
         this.patients = patients;
         this.visits = visits;
@@ -53,6 +59,8 @@ class PatientService {
         this.consultationMapper = consultationMapper;
         this.prescriptionRepository = prescriptionRepository;
         this.labResultRepository = labResultRepository;
+        this.auditLogs = auditLogs;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -179,6 +187,39 @@ class PatientService {
                     labResultResponse
             );
         }).toList();
+    }
+
+    @Transactional
+    public void logShare(ShareLogRequest request) {
+        UUID userId = getCurrentUserId();
+        String reason = String.format("Partagé via %s. Consentement du patient: %s.", 
+                request.channel(), 
+                request.consent() ? "Oui" : "Non");
+        auditLogs.save(AuditLogEntity.log(
+                userId,
+                "SHARE_DOCUMENT",
+                "PATIENT",
+                request.entityType(),
+                request.entityId(),
+                reason
+        ));
+    }
+
+    private UUID getCurrentUserId() {
+        try {
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
+                return null;
+            }
+            String username = auth.getName();
+            return jdbcTemplate.queryForObject(
+                    "SELECT id FROM auth_users WHERE LOWER(username) = LOWER(?)",
+                    UUID.class,
+                    username
+            );
+        } catch (Exception e) {
+            return null;
+        }
     }
 
 }

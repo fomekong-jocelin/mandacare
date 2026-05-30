@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import '../../../app/api/api_client.dart';
+import '../../../shared/presentation/document_preview_share_screen.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/layout/adaptive_layout.dart';
 import '../../../shared/presentation/widgets/feature_header.dart';
@@ -159,6 +160,12 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
 
     setState(() => _completingVisitId = visitId);
     try {
+      String? phone;
+      try {
+        final matchingPatient = _patients.firstWhere((p) => p.patient.latestVisitId == visitId);
+        phone = matchingPatient.patient.phoneNumber;
+      } catch (_) {}
+
       final updatedPatient = await widget.patientGateway.completeCashDesk(
         session: widget.session,
         visitId: visitId,
@@ -182,7 +189,9 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
       final baseUrlString = widget.patientGateway is BackendPatientGateway
           ? (widget.patientGateway as BackendPatientGateway).apiClient.baseUrl
           : "http://localhost:8080/api/v1";
-      final fullUrl = '$baseUrlString$relativeUrl';
+      final apiClient = widget.patientGateway is BackendPatientGateway
+          ? (widget.patientGateway as BackendPatientGateway).apiClient
+          : ApiClient(baseUrl: baseUrlString);
 
       if (!mounted) return;
 
@@ -193,7 +202,7 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
           return AlertDialog(
             title: const Text('Paiement validé !'),
             content: const Text(
-              'Le reçu de paiement a été généré avec succès. Souhaitez-vous le prévisualiser et l\'imprimer ?',
+              'Le reçu de paiement a été généré avec succès. Souhaitez-vous le prévisualiser, le télécharger ou le partager ?',
             ),
             actions: [
               TextButton(
@@ -201,32 +210,24 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
                 child: const Text('Plus tard'),
               ),
               FilledButton.icon(
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
+                onPressed: () {
                   Navigator.of(dialogContext).pop();
-                  final url = Uri.parse(fullUrl);
-                  try {
-                    final success = await launchUrl(
-                      url,
-                      mode: LaunchMode.externalApplication,
-                    );
-                    if (!success) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Impossible d\'ouvrir le PDF.'),
-                        ),
-                      );
-                    }
-                  } catch (_) {
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('Impossible d\'ouvrir le PDF.'),
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => DocumentPreviewShareScreen(
+                        pdfUrl: relativeUrl,
+                        title: 'Reçu de paiement',
+                        session: widget.session,
+                        apiClient: apiClient,
+                        entityId: visitId,
+                        entityType: 'INVOICE',
+                        phoneNumber: phone,
                       ),
-                    );
-                  }
+                    ),
+                  );
                 },
-                icon: const Icon(Icons.print_rounded),
-                label: const Text('Imprimer'),
+                icon: const Icon(Icons.preview_rounded),
+                label: const Text('Prévisualiser'),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.medicalGreen,
                   foregroundColor: Colors.white,

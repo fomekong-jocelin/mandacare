@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../features/auth/data/auth_gateway.dart';
 import '../features/auth/domain/auth_session.dart';
 import '../features/patients/data/patient_gateway.dart';
+import '../features/tariff/data/tariff_gateway.dart';
+import '../features/more/data/clinic_gateway.dart';
 import '../features/users/data/user_gateway.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -13,6 +15,8 @@ class MandaCareApp extends StatelessWidget {
     this.authGateway,
     this.patientGateway,
     this.userGateway,
+    this.tariffGateway,
+    this.clinicGateway,
     super.key,
   });
 
@@ -20,6 +24,8 @@ class MandaCareApp extends StatelessWidget {
   final AuthGateway? authGateway;
   final PatientGateway? patientGateway;
   final UserGateway? userGateway;
+  final TariffGateway? tariffGateway;
+  final ClinicGateway? clinicGateway;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +50,8 @@ class MandaCareApp extends StatelessWidget {
         authGateway: authGateway,
         patientGateway: patientGateway,
         userGateway: userGateway,
+        tariffGateway: tariffGateway,
+        clinicGateway: clinicGateway,
       ),
     );
   }

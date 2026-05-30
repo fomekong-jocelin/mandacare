@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../app/api/api_client.dart';
+import '../../../shared/presentation/document_preview_share_screen.dart';
 
 import '../../../app/api/api_exception.dart';
 import '../../../app/theme/app_colors.dart';
@@ -67,8 +69,14 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
       PatientStatus.released => ConsultationDecision.releasePatient,
       _ => ConsultationDecision.keepInConsultation,
     };
-    _loadDraft();
-    _loadExams();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    await _loadExams();
+    if (mounted) {
+      await _loadDraft();
+    }
   }
 
   Future<void> _loadExams() async {
@@ -139,6 +147,34 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
                   _prescriptionControllers.add(
                     _PrescriptionItemControllers(item),
                   );
+                }
+              });
+            }
+          } catch (_) {}
+
+          try {
+            final invoices = await widget.patientGateway.getInvoices(
+              session: widget.session,
+              visitId: widget.visitId,
+            );
+            final examLabels = invoices
+                .expand((inv) => inv.items)
+                .where((item) => item.type == 'EXAM')
+                .map((item) => item.label.trim().toLowerCase())
+                .toSet();
+
+            if (examLabels.isNotEmpty && mounted) {
+              setState(() {
+                for (final exam in _exams) {
+                  final examName = exam.name.trim().toLowerCase();
+                  final examCode = exam.code.trim().toLowerCase();
+                  final combined = '${exam.code} - ${exam.name}'.trim().toLowerCase();
+
+                  if (examLabels.contains(examName) ||
+                      examLabels.contains(examCode) ||
+                      examLabels.contains(combined)) {
+                    _selectedExamIds.add(exam.id);
+                  }
                 }
               });
             }
@@ -608,7 +644,9 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
         final baseUrlString = widget.patientGateway is BackendPatientGateway
             ? (widget.patientGateway as BackendPatientGateway).apiClient.baseUrl
             : "http://localhost:8080/api/v1";
-        final fullUrl = '$baseUrlString$relativeUrl';
+        final apiClient = widget.patientGateway is BackendPatientGateway
+            ? (widget.patientGateway as BackendPatientGateway).apiClient
+            : ApiClient(baseUrl: baseUrlString);
 
         await showDialog<void>(
           context: context,
@@ -617,7 +655,7 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
             return AlertDialog(
               title: const Text('Consultation validée !'),
               content: const Text(
-                'L\'ordonnance a été générée avec succès. Souhaitez-vous la prévisualiser et l\'imprimer ?',
+                'L\'ordonnance a été générée avec succès. Souhaitez-vous la prévisualiser, la télécharger ou la partager ?',
               ),
               actions: [
                 TextButton(
@@ -625,32 +663,24 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
                   child: const Text('Plus tard'),
                 ),
                 FilledButton.icon(
-                  onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
+                  onPressed: () {
                     Navigator.of(dialogContext).pop();
-                    final url = Uri.parse(fullUrl);
-                    try {
-                      final success = await launchUrl(
-                        url,
-                        mode: LaunchMode.externalApplication,
-                      );
-                      if (!success) {
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Impossible d\'ouvrir le PDF.'),
-                          ),
-                        );
-                      }
-                    } catch (_) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Impossible d\'ouvrir le PDF.'),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => DocumentPreviewShareScreen(
+                          pdfUrl: relativeUrl,
+                          title: 'Ordonnance médicale',
+                          session: widget.session,
+                          apiClient: apiClient,
+                          entityId: consultationId,
+                          entityType: 'PRESCRIPTION',
+                          phoneNumber: widget.patient.phoneNumber,
                         ),
-                      );
-                    }
+                      ),
+                    );
                   },
-                  icon: const Icon(Icons.print_rounded),
-                  label: const Text('Prévisualiser & Imprimer'),
+                  icon: const Icon(Icons.preview_rounded),
+                  label: const Text('Prévisualiser'),
                 ),
               ],
             );

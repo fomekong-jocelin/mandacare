@@ -63,7 +63,12 @@ class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
   @override
   void initState() {
     super.initState();
+    _amountController.addListener(_onAmountChanged);
     _fetchPreview();
+  }
+
+  void _onAmountChanged() {
+    setState(() {});
   }
 
   Future<void> _fetchPreview() async {
@@ -97,6 +102,7 @@ class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
 
   @override
   void dispose() {
+    _amountController.removeListener(_onAmountChanged);
     _amountController.dispose();
     _referenceController.dispose();
     super.dispose();
@@ -115,238 +121,242 @@ class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
         ),
         child: SafeArea(
           top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppColors.premiumGold.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: AppColors.premiumGold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.payments_rounded,
+                        color: AppColors.premiumGold,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.payments_rounded,
-                      color: AppColors.premiumGold,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.patientName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: AppColors.deepHealthBlue,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Orientation ${widget.targetLabel}',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (_loadingPreview)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 36),
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                else if (_previewError != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: AppColors.warning,
+                            size: 32,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _previewError!,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: _fetchPreview,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Réessayer'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else ...[
+                  Text(
+                    'Détail des prestations',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: AppColors.deepHealthBlue,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.border.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.border.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        for (final item in _preview!.items) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  item.type == 'EXAM'
+                                      ? Icons.science_rounded
+                                      : Icons.medical_services_rounded,
+                                  size: 16,
+                                  color: item.type == 'EXAM'
+                                      ? Colors.purple
+                                      : AppColors.deepHealthBlue,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    item.label,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: AppColors.textPrimary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                ),
+                                Text(
+                                  '${item.quantity} x ${item.price.toInt()} Frs',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (item != _preview!.items.last)
+                            Divider(
+                              height: 1,
+                              color: AppColors.border.withValues(alpha: 0.25),
+                            ),
+                        ],
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.medicalGreen.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.medicalGreen.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          widget.patientName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: AppColors.deepHealthBlue,
-                                fontWeight: FontWeight.w700,
+                          'Total net à payer :',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: AppColors.medicalGreen,
+                                fontWeight: FontWeight.w800,
                               ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          'Orientation ${widget.targetLabel}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSecondary,
+                          '${_preview!.netAmount.toInt()} Frs',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: AppColors.medicalGreen,
+                                fontWeight: FontWeight.w900,
                               ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        CompactTextFormField(
+                          key: const ValueKey('cashdesk-payment-amount'),
+                          controller: _amountController,
+                          label: 'Montant encaissé',
+                          icon: Icons.payments_rounded,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          helperText: 'Montant payé par le patient (pré-rempli)',
+                          validator: _amountValidator,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildPaymentFeedback(),
+                        const SizedBox(height: 8),
+                        CompactDropdownField(
+                          label: 'Mode de paiement',
+                          value: _mode.label,
+                          items: _PaymentModeOption.labels,
+                          icon: Icons.account_balance_wallet_rounded,
+                          onChanged: (value) {
+                            setState(() => _mode = _PaymentModeOption.fromLabel(value));
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        CompactTextFormField(
+                          key: const ValueKey('cashdesk-payment-reference'),
+                          controller: _referenceController,
+                          label: 'Référence / reçu',
+                          icon: Icons.confirmation_number_rounded,
+                          textInputAction: TextInputAction.done,
+                        ),
+                        const SizedBox(height: 10),
+                        FilledButton.icon(
+                          key: const ValueKey('cashdesk-payment-submit'),
+                          onPressed: _submit,
+                          icon: const Icon(Icons.check_rounded),
+                          label: const Text('Encaisser et orienter'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                            backgroundColor: AppColors.medicalGreen,
+                            foregroundColor: Colors.white,
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 18),
-              if (_loadingPreview)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 36),
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              else if (_previewError != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          color: AppColors.warning,
-                          size: 32,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _previewError!,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: _fetchPreview,
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Réessayer'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else ...[
-                Text(
-                  'Détail des prestations',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: AppColors.deepHealthBlue,
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.border.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppColors.border.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      for (final item in _preview!.items) ...[
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            children: [
-                              Icon(
-                                item.type == 'EXAM'
-                                    ? Icons.science_rounded
-                                    : Icons.medical_services_rounded,
-                                size: 16,
-                                color: item.type == 'EXAM'
-                                    ? Colors.purple
-                                    : AppColors.deepHealthBlue,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  item.label,
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                              ),
-                              Text(
-                                '${item.quantity} x ${item.price.toInt()} Frs',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (item != _preview!.items.last)
-                          Divider(
-                            height: 1,
-                            color: AppColors.border.withValues(alpha: 0.25),
-                          ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.medicalGreen.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppColors.medicalGreen.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Total net à payer :',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.medicalGreen,
-                              fontWeight: FontWeight.w800,
-                            ),
-                      ),
-                      Text(
-                        '${_preview!.netAmount.toInt()} Frs',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: AppColors.medicalGreen,
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      CompactTextFormField(
-                        key: const ValueKey('cashdesk-payment-amount'),
-                        controller: _amountController,
-                        label: 'Montant encaissé',
-                        icon: Icons.payments_rounded,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        helperText: 'Montant payé par le patient (pré-rempli)',
-                        validator: _amountValidator,
-                      ),
-                      const SizedBox(height: 12),
-                      CompactDropdownField(
-                        label: 'Mode de paiement',
-                        value: _mode.label,
-                        items: _PaymentModeOption.labels,
-                        icon: Icons.account_balance_wallet_rounded,
-                        onChanged: (value) {
-                          setState(() => _mode = _PaymentModeOption.fromLabel(value));
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      CompactTextFormField(
-                        key: const ValueKey('cashdesk-payment-reference'),
-                        controller: _referenceController,
-                        label: 'Référence / reçu',
-                        icon: Icons.confirmation_number_rounded,
-                        textInputAction: TextInputAction.done,
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        key: const ValueKey('cashdesk-payment-submit'),
-                        onPressed: _submit,
-                        icon: const Icon(Icons.check_rounded),
-                        label: const Text('Encaisser et orienter'),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          backgroundColor: AppColors.medicalGreen,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -379,6 +389,71 @@ class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
       return null;
     }
     return double.tryParse(value.trim().replaceAll(',', '.'));
+  }
+
+  Widget _buildPaymentFeedback() {
+    if (_preview == null) return const SizedBox.shrink();
+    
+    final enteredText = _amountController.text.trim();
+    if (enteredText.isEmpty) return const SizedBox.shrink();
+    
+    final enteredAmount = double.tryParse(enteredText.replaceAll(',', '.')) ?? 0;
+    final netAmount = _preview!.netAmount;
+    
+    if (enteredAmount == netAmount) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.medicalGreen.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Text(
+          'Compte juste - Paiement complet',
+          style: TextStyle(
+            color: AppColors.medicalGreen,
+            fontWeight: FontWeight.w600,
+            fontSize: 12.5,
+          ),
+        ),
+      );
+    } else if (enteredAmount < netAmount) {
+      final remainder = netAmount - enteredAmount;
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'Paiement partiel - Reste à payer : ${remainder.toInt()} FCFA',
+          style: const TextStyle(
+            color: AppColors.warning,
+            fontWeight: FontWeight.w600,
+            fontSize: 12.5,
+          ),
+        ),
+      );
+    } else {
+      final change = enteredAmount - netAmount;
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.info.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'Sur-paiement - Monnaie à rendre : ${change.toInt()} FCFA',
+          style: const TextStyle(
+            color: AppColors.info,
+            fontWeight: FontWeight.w600,
+            fontSize: 12.5,
+          ),
+        ),
+      );
+    }
   }
 }
 

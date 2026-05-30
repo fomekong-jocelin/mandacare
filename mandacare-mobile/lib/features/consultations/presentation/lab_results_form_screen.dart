@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../app/api/api_client.dart';
+import '../../../shared/presentation/document_preview_share_screen.dart';
 
 import '../../../app/api/api_exception.dart';
 import '../../../app/theme/app_colors.dart';
@@ -274,6 +277,65 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
           content: Text('Résultats validés - retour en consultation'),
         ),
       );
+
+      final relativeUrl = '/visits/${widget.visitId}/lab-results/pdf';
+      final baseUrlString = widget.patientGateway is BackendPatientGateway
+          ? (widget.patientGateway as BackendPatientGateway).apiClient.baseUrl
+          : "http://localhost:8080/api/v1";
+      final apiClient = widget.patientGateway is BackendPatientGateway
+          ? (widget.patientGateway as BackendPatientGateway).apiClient
+          : ApiClient(baseUrl: baseUrlString);
+
+      if (!mounted) return;
+
+      setState(() => _saving = false);
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Résultats validés !'),
+            content: const Text(
+              'Le compte-rendu d\'examen a été généré avec succès. Souhaitez-vous le prévisualiser, le télécharger ou le partager ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Plus tard'),
+              ),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => DocumentPreviewShareScreen(
+                        pdfUrl: relativeUrl,
+                        title: 'Compte-rendu d\'examen',
+                        session: widget.session,
+                        apiClient: apiClient,
+                        entityId: widget.visitId,
+                        entityType: 'LAB_RESULT',
+                        phoneNumber: widget.patient.phoneNumber,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.preview_rounded),
+                label: const Text('Prévisualiser'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.medicalGreen,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } on ApiException catch (exception) {
       _showError(exception.message);

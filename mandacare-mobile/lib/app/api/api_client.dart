@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'api_exception.dart';
 
@@ -8,6 +9,24 @@ class ApiClient {
 
   final String baseUrl;
   final HttpClient _httpClient = HttpClient();
+
+  Future<Uint8List> getBytes(
+    String path, {
+    Map<String, String>? query,
+    String? token,
+  }) async {
+    final request = await _httpClient.getUrl(_uri(path, query));
+    request.headers.set(HttpHeaders.acceptHeader, 'application/pdf');
+    if (token != null) {
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    }
+    final response = await request.close();
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(response.statusCode, 'Erreur de téléchargement du document.');
+    }
+    final bytes = await response.fold<List<int>>([], (previous, element) => previous..addAll(element));
+    return Uint8List.fromList(bytes);
+  }
 
   Future<List<dynamic>> getJsonList(
     String path, {

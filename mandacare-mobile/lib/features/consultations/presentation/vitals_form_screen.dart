@@ -8,6 +8,7 @@ import '../../../shared/presentation/widgets/page_header.dart';
 import '../../auth/domain/auth_session.dart';
 import '../../patients/data/patient_gateway.dart';
 import '../../patients/domain/patient_summary.dart';
+import '../../patients/domain/vitals_summary.dart';
 
 class VitalsFormScreen extends StatefulWidget {
   const VitalsFormScreen({
@@ -15,6 +16,7 @@ class VitalsFormScreen extends StatefulWidget {
     required this.patientGateway,
     required this.patient,
     required this.visitId,
+    this.existingVitals,
     super.key,
   });
 
@@ -22,6 +24,7 @@ class VitalsFormScreen extends StatefulWidget {
   final PatientGateway patientGateway;
   final PatientSummary patient;
   final String visitId;
+  final VitalsSummary? existingVitals;
 
   @override
   State<VitalsFormScreen> createState() => _VitalsFormScreenState();
@@ -45,6 +48,19 @@ class _VitalsFormScreenState extends State<VitalsFormScreen> {
     super.initState();
     _weightController.addListener(_refreshBmi);
     _heightController.addListener(_refreshBmi);
+
+    if (widget.existingVitals != null) {
+      final v = widget.existingVitals!;
+      _temperatureController.text = v.temperature?.toString() ?? '';
+      _systolicController.text = v.systolicPressure?.toString() ?? '';
+      _diastolicController.text = v.diastolicPressure?.toString() ?? '';
+      _pulseController.text = v.pulse?.toString() ?? '';
+      _respiratoryController.text = v.respiratoryRate?.toString() ?? '';
+      _oxygenController.text = v.oxygenSaturation?.toString() ?? '';
+      _weightController.text = v.weight?.toString() ?? '';
+      _heightController.text = v.height?.toString() ?? '';
+      _glucoseController.text = v.bloodGlucose?.toString() ?? '';
+    }
   }
 
   @override

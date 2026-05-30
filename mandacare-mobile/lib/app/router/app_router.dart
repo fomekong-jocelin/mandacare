@@ -6,6 +6,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/patients/data/patient_gateway.dart';
 import '../../features/tariff/data/tariff_gateway.dart';
 import '../../features/users/data/user_gateway.dart';
+import '../../features/more/data/clinic_gateway.dart';
 import '../api/api_client.dart';
 import '../api/api_config.dart';
 import '../navigation/app_shell.dart';
@@ -17,6 +18,7 @@ class AppRouter extends StatefulWidget {
     this.patientGateway,
     this.userGateway,
     this.tariffGateway,
+    this.clinicGateway,
     super.key,
   });
 
@@ -25,6 +27,7 @@ class AppRouter extends StatefulWidget {
   final PatientGateway? patientGateway;
   final UserGateway? userGateway;
   final TariffGateway? tariffGateway;
+  final ClinicGateway? clinicGateway;
 
   @override
   State<AppRouter> createState() => _AppRouterState();
@@ -36,6 +39,7 @@ class _AppRouterState extends State<AppRouter> {
   late final PatientGateway _patientGateway;
   late final UserGateway _userGateway;
   late final TariffGateway _tariffGateway;
+  late final ClinicGateway _clinicGateway;
   AuthSession? _session;
 
   @override
@@ -47,6 +51,7 @@ class _AppRouterState extends State<AppRouter> {
         widget.patientGateway ?? BackendPatientGateway(_apiClient);
     _userGateway = widget.userGateway ?? BackendUserGateway(_apiClient);
     _tariffGateway = widget.tariffGateway ?? BackendTariffGateway(_apiClient);
+    _clinicGateway = widget.clinicGateway ?? BackendClinicGateway(_apiClient);
     _session = widget.initialSession;
   }
 
@@ -61,6 +66,7 @@ class _AppRouterState extends State<AppRouter> {
       patientGateway: _patientGateway,
       userGateway: _userGateway,
       tariffGateway: _tariffGateway,
+      clinicGateway: _clinicGateway,
     );
   }
 

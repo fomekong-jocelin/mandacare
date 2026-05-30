@@ -4,6 +4,7 @@ import '../../features/cashdesk/presentation/cashdesk_screen.dart';
 import '../../features/consultations/presentation/consultation_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/auth/domain/auth_session.dart';
+import '../../features/more/data/clinic_gateway.dart';
 import '../../features/more/presentation/more_screen.dart';
 import '../../features/patients/data/patient_gateway.dart';
 import '../../features/patients/presentation/patient_filter.dart';
@@ -20,6 +21,7 @@ class AppShell extends StatefulWidget {
     required this.patientGateway,
     required this.userGateway,
     required this.tariffGateway,
+    required this.clinicGateway,
     super.key,
   });
 
@@ -27,6 +29,7 @@ class AppShell extends StatefulWidget {
   final PatientGateway patientGateway;
   final UserGateway userGateway;
   final TariffGateway tariffGateway;
+  final ClinicGateway clinicGateway;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -77,6 +80,7 @@ class _AppShellState extends State<AppShell> {
           session: widget.session,
           userGateway: widget.userGateway,
           tariffGateway: widget.tariffGateway,
+          clinicGateway: widget.clinicGateway,
         ),
       ],
     );

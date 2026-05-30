@@ -550,6 +550,123 @@ void main() {
 
     expect(patientGateway.statusFor(visitId), PatientStatus.inConsultation);
   });
+
+  testWidgets('modifying constants loads existing vitals values', (tester) async {
+    final patientGateway = FakePatientGateway();
+    const visitId = '10000000-0000-0000-0000-000000000001'; // Awa Diop
+    await patientGateway.createVitals(
+      session: session,
+      visitId: visitId,
+      payload: const CreateVitalsPayload(
+        temperature: 37.9,
+        systolicPressure: 125,
+        diastolicPressure: 78,
+        pulse: 72,
+        weight: 65,
+        height: 165,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MandaCareApp(initialSession: session, patientGateway: patientGateway),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-patients')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Awa Diop').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Modifier les constantes'), findsOneWidget);
+    await tester.tap(find.text('Modifier les constantes'));
+    await tester.pumpAndSettle();
+
+    // Verify fields are pre-populated
+    final tempFinder = find.descendant(
+      of: find.byKey(const ValueKey('vitals-temperature-field')),
+      matching: find.byType(TextField),
+    );
+    expect(tester.widget<TextField>(tempFinder).controller?.text, '37.9');
+
+    final sysFinder = find.descendant(
+      of: find.byKey(const ValueKey('vitals-systolic-field')),
+      matching: find.byType(TextField),
+    );
+    expect(tester.widget<TextField>(sysFinder).controller?.text, '125');
+
+    final weightFinder = find.descendant(
+      of: find.byKey(const ValueKey('vitals-weight-field')),
+      matching: find.byType(TextField),
+    );
+    expect(tester.widget<TextField>(weightFinder).controller?.text, '65.0');
+  });
+
+  testWidgets('modifying consultation restores selected exams list from invoice', (tester) async {
+    final patientGateway = FakePatientGateway();
+    const visitId = '10000000-0000-0000-0000-000000000002'; // Mamadou Sarr
+
+    await patientGateway.createVitals(
+      session: session,
+      visitId: visitId,
+      payload: const CreateVitalsPayload(
+        temperature: 37.2,
+        systolicPressure: 120,
+        diastolicPressure: 80,
+      ),
+    );
+
+    await patientGateway.createConsultation(
+      session: session,
+      visitId: visitId,
+      payload: const CreateConsultationPayload(
+        symptoms: 'Maux de tête',
+        clinicalExam: 'Normal',
+        diagnosis: 'Migraine',
+        advice: 'NFS',
+        decision: ConsultationDecision.sendToLab,
+        status: 'VALIDATED',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MandaCareApp(initialSession: session, patientGateway: patientGateway),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-patients')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mamadou Sarr').first);
+    await tester.pumpAndSettle();
+
+    final modifierConsultFinder = find.text('Modifier la consultation');
+    await tester.scrollUntilVisible(
+      modifierConsultFinder,
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+
+    expect(modifierConsultFinder, findsOneWidget);
+    await tester.tap(modifierConsultFinder);
+    await tester.pumpAndSettle();
+
+    final examTileFinder = find.byKey(const ValueKey('exam-tile-NFS'));
+    await tester.scrollUntilVisible(
+      examTileFinder,
+      100,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('consultation-form-scroll')),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    await tester.pumpAndSettle();
+
+    // The mock active exams list has 'NFS'. Since our mock invoice has EXAM 'NFS',
+    // it should be automatically checked!
+    expect(find.text('NFS'), findsWidgets);
+    final checkboxTile = tester.widget<CheckboxListTile>(examTileFinder);
+    expect(checkboxTile.value, isTrue);
+  });
 }
 
 class FakeAuthGateway implements AuthGateway {

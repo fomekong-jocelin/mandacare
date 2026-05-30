@@ -80,4 +80,10 @@ class PatientController {
                 .toUri();
         return ResponseEntity.created(location).body(response);
     }
+
+    @PostMapping("/share-log")
+    ResponseEntity<Void> logShare(@Valid @RequestBody ShareLogRequest request) {
+        service.logShare(request);
+        return ResponseEntity.ok().build();
+    }
 }
