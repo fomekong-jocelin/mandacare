@@ -46,12 +46,15 @@ class VisitController {
     @org.springframework.web.bind.annotation.GetMapping("/{id}/invoice/pdf")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     org.springframework.http.ResponseEntity<byte[]> getInvoicePdf(@PathVariable UUID id) {
-        InvoiceEntity invoice = invoiceRepository.findByVisitId(id)
-                .orElseThrow(() -> new cm.mandacare.api.common.error.BusinessException(
-                        "INVOICE_NOT_FOUND",
-                        "Facture introuvable pour cette visite.",
-                        org.springframework.http.HttpStatus.NOT_FOUND
-                ));
+        java.util.List<InvoiceEntity> invoices = invoiceRepository.findByVisitIdOrderByCreatedAtDesc(id);
+        if (invoices.isEmpty()) {
+            throw new cm.mandacare.api.common.error.BusinessException(
+                    "INVOICE_NOT_FOUND",
+                    "Facture introuvable pour cette visite.",
+                    org.springframework.http.HttpStatus.NOT_FOUND
+            );
+        }
+        InvoiceEntity invoice = invoices.get(0);
 
         byte[] pdfBytes = invoicePdfService.generatePdf(invoice);
 

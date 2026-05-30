@@ -460,6 +460,10 @@ class PatientControllerTest {
 
         org.junit.jupiter.api.Assertions.assertEquals(initialInvoicesCount + 1, invoices.count());
         org.junit.jupiter.api.Assertions.assertEquals(initialPaymentsCount + 1, payments.count());
+
+        mockMvc.perform(get("/api/v1/visits/{id}/invoice/pdf", visitId))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/pdf"));
     }
 
     @Test
@@ -879,8 +883,7 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.items", hasSize(2)));
 
         // 6. Get PDF bytes
-        mockMvc.perform(get("/api/v1/consultations/{id}/prescription/pdf", consultationId)
-                        .with(user("doctor")))
+        mockMvc.perform(get("/api/v1/consultations/{id}/prescription/pdf", consultationId))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/pdf"));
     }
