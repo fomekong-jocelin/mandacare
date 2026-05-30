@@ -8,6 +8,7 @@ import '../../features/more/presentation/more_screen.dart';
 import '../../features/patients/data/patient_gateway.dart';
 import '../../features/patients/presentation/patient_filter.dart';
 import '../../features/patients/presentation/patient_list_screen.dart';
+import '../../features/tariff/data/tariff_gateway.dart';
 import '../../features/users/data/user_gateway.dart';
 import '../../shared/presentation/layout/adaptive_layout.dart';
 import 'app_tab.dart';
@@ -18,12 +19,14 @@ class AppShell extends StatefulWidget {
     required this.session,
     required this.patientGateway,
     required this.userGateway,
+    required this.tariffGateway,
     super.key,
   });
 
   final AuthSession session;
   final PatientGateway patientGateway;
   final UserGateway userGateway;
+  final TariffGateway tariffGateway;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -70,7 +73,11 @@ class _AppShellState extends State<AppShell> {
           refreshRequestId: _cashDeskRefreshRequestId,
           onQueueChanged: _requestDashboardRefresh,
         ),
-        MoreScreen(session: widget.session, userGateway: widget.userGateway),
+        MoreScreen(
+          session: widget.session,
+          userGateway: widget.userGateway,
+          tariffGateway: widget.tariffGateway,
+        ),
       ],
     );
 

@@ -66,4 +66,11 @@ class ExamEntity {
     boolean isActive() {
         return active;
     }
+
+    void update(String name, String category, BigDecimal price, boolean active) {
+        this.name = name;
+        this.category = category;
+        this.price = price;
+        this.active = active;
+    }
 }

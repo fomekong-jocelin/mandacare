@@ -5,6 +5,8 @@ import '../../../shared/presentation/layout/adaptive_layout.dart';
 import '../../../shared/presentation/widgets/action_tile.dart';
 import '../../../shared/presentation/widgets/feature_header.dart';
 import '../../auth/domain/auth_session.dart';
+import '../../tariff/data/tariff_gateway.dart';
+import '../../tariff/presentation/tariff_management_screen.dart';
 import '../../users/data/user_gateway.dart';
 import '../../users/presentation/user_management_screen.dart';
 
@@ -12,11 +14,13 @@ class MoreScreen extends StatelessWidget {
   const MoreScreen({
     required this.session,
     required this.userGateway,
+    required this.tariffGateway,
     super.key,
   });
 
   final AuthSession session;
   final UserGateway userGateway;
+  final TariffGateway tariffGateway;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +81,20 @@ class MoreScreen extends StatelessWidget {
                       const _SectionTitle(title: 'Configuration'),
                       const SizedBox(height: 10),
                       ActionTile(
+                        icon: Icons.price_change_rounded,
+                        title: 'Grille tarifaire',
+                        subtitle: session.roleCode == 'ADMIN'
+                            ? 'Examens labo et actes de soins'
+                            : 'Réservé aux administrateurs',
+                        onTap: session.roleCode == 'ADMIN'
+                            ? () => _openTariff(context)
+                            : null,
+                        trailing: session.roleCode == 'ADMIN'
+                            ? null
+                            : _UnavailableBadge(label: 'Admin'),
+                      ),
+                      const SizedBox(height: 10),
+                      ActionTile(
                         icon: Icons.business_rounded,
                         title: 'Clinique',
                         subtitle: 'Module non raccordé',
@@ -105,6 +123,17 @@ class MoreScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) =>
             UserManagementScreen(session: session, userGateway: userGateway),
+      ),
+    );
+  }
+
+  void _openTariff(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TariffManagementScreen(
+          session: session,
+          tariffGateway: tariffGateway,
+        ),
       ),
     );
   }

@@ -13,6 +13,7 @@ class CompactTextFormField extends StatelessWidget {
     this.textInputAction,
     this.textCapitalization = TextCapitalization.none,
     this.obscureText = false,
+    this.readOnly = false,
     this.minLines,
     this.maxLines = 1,
     this.validator,
@@ -32,6 +33,7 @@ class CompactTextFormField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final TextCapitalization textCapitalization;
   final bool obscureText;
+  final bool readOnly;
   final int? minLines;
   final int maxLines;
   final String? Function(String?)? validator;
@@ -56,6 +58,7 @@ class CompactTextFormField extends StatelessWidget {
           textInputAction: textInputAction,
           textCapitalization: textCapitalization,
           obscureText: obscureText,
+          readOnly: readOnly,
           minLines: effectiveMinLines,
           maxLines: maxLines,
           validator: validator,
