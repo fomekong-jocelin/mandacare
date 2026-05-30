@@ -1068,7 +1068,7 @@ class PatientControllerTest {
         mockMvc.perform(post("/api/v1/visits/{id}/lab-results", visitId)
                         .with(user("lab"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(labResultJson()))
+                        .content(longLabResultJson()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestVisit.status").value("IN_CONSULTATION"));
 
@@ -1076,14 +1076,19 @@ class PatientControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "application/pdf"))
                 .andReturn();
-        assertValidPdf(labResultPdf);
+        assertValidPdf(labResultPdf, 1);
     }
 
     private void assertValidPdf(MvcResult result) throws Exception {
+        assertValidPdf(result, Integer.MAX_VALUE);
+    }
+
+    private void assertValidPdf(MvcResult result, int maxPages) throws Exception {
         byte[] content = result.getResponse().getContentAsByteArray();
         assertTrue(content.length > 500, "PDF response should not be empty");
         try (PdfReader reader = new PdfReader(content)) {
             assertTrue(reader.getNumberOfPages() >= 1, "PDF should contain at least one page");
+            assertTrue(reader.getNumberOfPages() <= maxPages, "PDF should not create an orphan extra page");
         }
     }
 
@@ -1122,6 +1127,19 @@ class PatientControllerTest {
                   "examType": "Numération Formule Sanguine (NFS)",
                   "results": "GB 7200/mm3, Hb 13 g/dL",
                   "observations": "Résultats compatibles avec le contexte clinique",
+                  "sampleDate": "2026-05-30",
+                  "dossierNumber": "LAB-MC-TEST",
+                  "isNormal": false
+                }
+                """;
+    }
+
+    private String longLabResultJson() {
+        return """
+                {
+                  "examType": "Bilan laboratoire (9 examens) - Ionogramme complet, Magnesium, SGPT, Electrophorèse / HB, Groupe sanguin / ABC / RHESUS, VS, Coprologie / Selles / Koap, HIV, Hepatites A, B, C",
+                  "results": "Ionogramme complet\\nStatut : Normal\\nRésultat : Résultats normaux\\n\\nMagnesium\\nStatut : Normal\\nRésultat : Résultats normaux\\n\\nSGPT\\nStatut : Normal\\nRésultat : Résultats normaux\\n\\nElectrophorèse / HB\\nStatut : Anormal / à interpréter\\nRésultat : Gg'juujjjhgedffgttt\\n\\nGroupe sanguin / ABC / RHESUS\\nStatut : Anormal / à interpréter\\nRésultat : Rvvbb\\n\\nVS\\nStatut : Anormal / à interpréter\\nRésultat : Fthjjjj\\n\\nCoprologie / Selles / Koap\\nStatut : Anormal / à interpréter\\nRésultat : Ggghhjjjj\\n\\nHIV\\nStatut : Normal\\nRésultat : Résultats normaux\\n\\nHepatites A, B, C\\nStatut : Normal\\nRésultat : Résultats normaux",
+                  "observations": "Observation clinique à confronter au contexte médical. Contrôle recommandé selon l'évolution du patient.",
                   "sampleDate": "2026-05-30",
                   "dossierNumber": "LAB-MC-TEST",
                   "isNormal": false

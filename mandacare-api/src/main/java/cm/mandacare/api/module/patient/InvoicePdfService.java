@@ -14,12 +14,17 @@ import java.time.format.DateTimeFormatter;
 @Service
 class InvoicePdfService {
 
+    private static final Color DEEP_HEALTH_BLUE = new Color(11, 59, 96);
+    private static final Color MEDICAL_GREEN = new Color(46, 125, 50);
+    private static final Color TEXT = new Color(60, 60, 60);
+    private static final Color MUTED_TEXT = new Color(105, 112, 122);
+    private static final Color LIGHT_CARD = new Color(248, 250, 252);
+    private static final Color SOFT_BORDER = new Color(225, 230, 235);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
             .withZone(ZoneId.systemDefault());
 
     public byte[] generatePdf(InvoiceEntity invoice) {
-        // Margins: Left 40, Right 40, Top 45, Bottom 75 (gives safe space for footer background curves)
-        Document document = new Document(PageSize.A4, 40, 40, 45, 75);
+        Document document = new Document(PageSize.A4, 40, 40, 40, 54);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         try {
@@ -35,17 +40,16 @@ class InvoicePdfService {
                     float width = document.getPageSize().getWidth();
 
                     // 1. Bottom Dark Blue Wave
-                    cb.setColorFill(new Color(11, 59, 96)); // Deep Health Blue
+                    cb.setColorFill(DEEP_HEALTH_BLUE);
                     cb.moveTo(0, 0);
-                    cb.lineTo(0, 20);
-                    cb.curveTo(width * 0.25f, 32, width * 0.5f, 15, width * 0.75f, 0);
+                    cb.lineTo(0, 16);
+                    cb.curveTo(width * 0.25f, 25, width * 0.5f, 12, width * 0.75f, 0);
                     cb.lineTo(0, 0);
                     cb.fill();
 
-                    // 2. Bottom Green Wave
-                    cb.setColorFill(new Color(46, 125, 50)); // Medical Green
+                    cb.setColorFill(MEDICAL_GREEN);
                     cb.moveTo(width * 0.45f, 0);
-                    cb.curveTo(width * 0.6f, 12, width * 0.8f, 25, width, 35);
+                    cb.curveTo(width * 0.6f, 9, width * 0.8f, 20, width, 28);
                     cb.lineTo(width, 0);
                     cb.lineTo(width * 0.45f, 0);
                     cb.fill();
@@ -76,7 +80,7 @@ class InvoicePdfService {
             PdfPTable headerTable = new PdfPTable(2);
             headerTable.setWidthPercentage(100);
             headerTable.setWidths(new float[]{70, 30});
-            headerTable.setSpacingAfter(15);
+            headerTable.setSpacingAfter(10);
 
             PdfPCell cellLeft = new PdfPCell();
             cellLeft.setBorder(Rectangle.NO_BORDER);
@@ -85,26 +89,25 @@ class InvoicePdfService {
                 var logoUrl = getClass().getResource("/assets/brand/mandacare_logo_horizontal.png");
                 if (logoUrl != null) {
                     Image logo = Image.getInstance(logoUrl);
-                    logo.scalePercent(15f);
+                    logo.scalePercent(13.5f);
                     cellLeft.addElement(logo);
                 } else {
-                    Font brandFont = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(11, 59, 96));
-                    Font subBrandFont = new Font(Font.HELVETICA, 10, Font.ITALIC, new Color(46, 125, 50));
+                    Font brandFont = new Font(Font.HELVETICA, 20, Font.BOLD, DEEP_HEALTH_BLUE);
+                    Font subBrandFont = new Font(Font.HELVETICA, 10, Font.ITALIC, MEDICAL_GREEN);
                     cellLeft.addElement(new Paragraph("MandaCare", brandFont));
                     cellLeft.addElement(new Paragraph("Soigner mieux, gérer simplement.", subBrandFont));
                 }
             } catch (Exception e) {
-                Font brandFont = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(11, 59, 96));
-                Font subBrandFont = new Font(Font.HELVETICA, 10, Font.ITALIC, new Color(46, 125, 50));
+                Font brandFont = new Font(Font.HELVETICA, 20, Font.BOLD, DEEP_HEALTH_BLUE);
+                Font subBrandFont = new Font(Font.HELVETICA, 10, Font.ITALIC, MEDICAL_GREEN);
                 cellLeft.addElement(new Paragraph("MandaCare", brandFont));
                 cellLeft.addElement(new Paragraph("Soigner mieux, gérer simplement.", subBrandFont));
             }
             headerTable.addCell(cellLeft);
 
-            // Right side: Medical Cross outline icon
             PdfPCell cellRight = new PdfPCell();
             cellRight.setBorder(Rectangle.NO_BORDER);
-            cellRight.setCellEvent(new MedicalCrossCellEvent());
+            cellRight.setCellEvent(new WalletCellEvent());
             headerTable.addCell(cellRight);
 
             document.add(headerTable);
@@ -113,11 +116,11 @@ class InvoicePdfService {
             PdfPTable titleTable = new PdfPTable(2);
             titleTable.setWidthPercentage(100);
             titleTable.setWidths(new float[]{60, 40});
-            titleTable.setSpacingAfter(20);
+            titleTable.setSpacingAfter(14);
 
             // Left side: Title based on paid status
             String documentTitle = "PAID".equalsIgnoreCase(invoice.status()) ? "Reçu de paiement" : "Facture de soins";
-            Font titleFont = new Font(Font.HELVETICA, 22, Font.BOLD, new Color(11, 59, 96));
+            Font titleFont = new Font(Font.HELVETICA, 20, Font.BOLD, DEEP_HEALTH_BLUE);
             PdfPCell titleCell = new PdfPCell(new Paragraph(documentTitle, titleFont));
             titleCell.setBorder(Rectangle.NO_BORDER);
             titleCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
@@ -125,15 +128,15 @@ class InvoicePdfService {
             titleTable.addCell(titleCell);
 
             // Right side: Date and invoice number
-            Font metaLabelFont = new Font(Font.HELVETICA, 10, Font.BOLD, new Color(100, 100, 100));
-            Font metaValueFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(50, 50, 50));
+            Font metaLabelFont = new Font(Font.HELVETICA, 9, Font.BOLD, MUTED_TEXT);
+            Font metaValueFont = new Font(Font.HELVETICA, 9, Font.NORMAL, TEXT);
 
             PdfPCell metaCell = new PdfPCell();
             metaCell.setBorder(Rectangle.NO_BORDER);
             metaCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
 
             Paragraph metaPara = new Paragraph();
-            metaPara.setLeading(14f);
+            metaPara.setLeading(12.5f);
             metaPara.setAlignment(Element.ALIGN_RIGHT);
             metaPara.add(new Chunk("Date : ", metaLabelFont));
             metaPara.add(new Chunk(DATE_FORMATTER.format(invoice.createdAt()) + "\n", metaValueFont));
@@ -153,15 +156,15 @@ class InvoicePdfService {
                     ? patient.birthDate().toString()
                     : (patient.declaredAge() != null ? patient.declaredAge() + " ans" : "-");
 
-            Font infoHeaderFont = new Font(Font.HELVETICA, 10, Font.BOLD, new Color(11, 59, 96));
-            Font infoValFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(60, 60, 60));
+            Font infoHeaderFont = new Font(Font.HELVETICA, 9.2f, Font.BOLD, DEEP_HEALTH_BLUE);
+            Font infoValFont = new Font(Font.HELVETICA, 9.2f, Font.NORMAL, TEXT);
 
             PdfPTable infoCardTable = new PdfPTable(1);
             infoCardTable.setWidthPercentage(100);
-            infoCardTable.setSpacingAfter(25);
+            infoCardTable.setSpacingAfter(14);
 
             PdfPCell cardCell = new PdfPCell();
-            cardCell.setPadding(12);
+            cardCell.setPadding(10);
             cardCell.setBorder(Rectangle.NO_BORDER);
             cardCell.setCellEvent(new RoundedBorderCellEvent());
 
@@ -179,7 +182,7 @@ class InvoicePdfService {
             PdfPCell patientDetailsCell = new PdfPCell();
             patientDetailsCell.setBorder(Rectangle.NO_BORDER);
             Paragraph pDetails = new Paragraph();
-            pDetails.setLeading(16f);
+            pDetails.setLeading(14f);
             pDetails.add(new Chunk("Patient : ", infoHeaderFont));
             pDetails.add(new Chunk(patientName + "\n", infoValFont));
             pDetails.add(new Chunk("Âge / Sexe : ", infoHeaderFont));
@@ -193,13 +196,13 @@ class InvoicePdfService {
             PdfPCell cashierDetailsCell = new PdfPCell();
             cashierDetailsCell.setBorder(Rectangle.NO_BORDER);
             Paragraph cDetails = new Paragraph();
-            cDetails.setLeading(16f);
+            cDetails.setLeading(14f);
             cDetails.add(new Chunk("Service : ", infoHeaderFont));
             cDetails.add(new Chunk("Caisse MandaCare\n", infoValFont));
             cDetails.add(new Chunk("Statut Facture : ", infoHeaderFont));
 
             String statusLabel = "PAID".equalsIgnoreCase(invoice.status()) ? "PAYÉE" : "PARTIELLEMENT PAYÉE";
-            Color statusColor = "PAID".equalsIgnoreCase(invoice.status()) ? new Color(46, 125, 50) : new Color(245, 124, 0);
+            Color statusColor = "PAID".equalsIgnoreCase(invoice.status()) ? MEDICAL_GREEN : new Color(245, 124, 0);
             cDetails.add(new Chunk(statusLabel + "\n", new Font(Font.HELVETICA, 10, Font.BOLD, statusColor)));
             cDetails.add(new Chunk("Reste à payer : ", infoHeaderFont));
             cDetails.add(new Chunk(formatCurrency(invoice.remainingAmount()) + "\n", infoValFont));
@@ -212,9 +215,9 @@ class InvoicePdfService {
             document.add(infoCardTable);
 
             // 4. Detailed Items Table
-            Font tableHeaderFont = new Font(Font.HELVETICA, 10, Font.BOLD, Color.WHITE);
-            Font tableBodyFont = new Font(Font.HELVETICA, 9.5f, Font.NORMAL, new Color(50, 50, 50));
-            Font tableBodyBoldFont = new Font(Font.HELVETICA, 9.5f, Font.BOLD, new Color(11, 59, 96));
+            Font tableHeaderFont = new Font(Font.HELVETICA, 9.5f, Font.BOLD, Color.WHITE);
+            Font tableBodyFont = new Font(Font.HELVETICA, 9.2f, Font.NORMAL, TEXT);
+            Font tableBodyBoldFont = new Font(Font.HELVETICA, 9.2f, Font.BOLD, DEEP_HEALTH_BLUE);
 
             PdfPTable itemsTable = new PdfPTable(5);
             itemsTable.setWidthPercentage(100);
@@ -222,15 +225,15 @@ class InvoicePdfService {
             itemsTable.setHeaderRows(1);
             itemsTable.setSplitRows(true);
             itemsTable.setSplitLate(false);
-            itemsTable.setSpacingAfter(20);
+            itemsTable.setSpacingAfter(14);
 
             // Table Headers
             String[] headers = {"Désignation", "Type", "Prix Unit.", "Qté", "Montant"};
             for (String header : headers) {
                 PdfPCell hCell = new PdfPCell(new Paragraph(header, tableHeaderFont));
-                hCell.setBackgroundColor(new Color(11, 59, 96)); // Deep Health Blue
-                hCell.setBorder(Rectangle.NO_BORDER);
-                hCell.setPadding(8);
+                hCell.setBackgroundColor(DEEP_HEALTH_BLUE);
+                hCell.setBorderColor(DEEP_HEALTH_BLUE);
+                hCell.setPadding(6);
                 if ("Désignation".equals(header)) {
                     hCell.setHorizontalAlignment(Element.ALIGN_LEFT);
                 } else if ("Qté".equals(header) || "Type".equals(header)) {
@@ -244,14 +247,14 @@ class InvoicePdfService {
             // Populate Table rows
             boolean alternate = false;
             for (InvoiceItemEntity item : invoice.items()) {
-                Color rowBg = alternate ? new Color(245, 247, 250) : Color.WHITE;
+                Color rowBg = alternate ? LIGHT_CARD : Color.WHITE;
                 alternate = !alternate;
 
                 // 1. Description
                 PdfPCell descCell = new PdfPCell(new Paragraph(item.label(), tableBodyBoldFont));
                 descCell.setBackgroundColor(rowBg);
                 descCell.setBorder(Rectangle.NO_BORDER);
-                descCell.setPadding(8);
+                descCell.setPadding(7);
                 descCell.setCellEvent(new BottomLineCellEvent());
                 itemsTable.addCell(descCell);
 
@@ -260,7 +263,7 @@ class InvoicePdfService {
                 PdfPCell typeCell = new PdfPCell(new Paragraph(typeLabel, tableBodyFont));
                 typeCell.setBackgroundColor(rowBg);
                 typeCell.setBorder(Rectangle.NO_BORDER);
-                typeCell.setPadding(8);
+                typeCell.setPadding(7);
                 typeCell.setHorizontalAlignment(Element.ALIGN_CENTER);
                 typeCell.setCellEvent(new BottomLineCellEvent());
                 itemsTable.addCell(typeCell);
@@ -269,7 +272,7 @@ class InvoicePdfService {
                 PdfPCell priceCell = new PdfPCell(new Paragraph(formatCurrency(item.price()), tableBodyFont));
                 priceCell.setBackgroundColor(rowBg);
                 priceCell.setBorder(Rectangle.NO_BORDER);
-                priceCell.setPadding(8);
+                priceCell.setPadding(7);
                 priceCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
                 priceCell.setCellEvent(new BottomLineCellEvent());
                 itemsTable.addCell(priceCell);
@@ -278,7 +281,7 @@ class InvoicePdfService {
                 PdfPCell qtyCell = new PdfPCell(new Paragraph(String.valueOf(item.quantity()), tableBodyFont));
                 qtyCell.setBackgroundColor(rowBg);
                 qtyCell.setBorder(Rectangle.NO_BORDER);
-                qtyCell.setPadding(8);
+                qtyCell.setPadding(7);
                 qtyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
                 qtyCell.setCellEvent(new BottomLineCellEvent());
                 itemsTable.addCell(qtyCell);
@@ -288,7 +291,7 @@ class InvoicePdfService {
                 PdfPCell totalCell = new PdfPCell(new Paragraph(formatCurrency(lineTotal), tableBodyBoldFont));
                 totalCell.setBackgroundColor(rowBg);
                 totalCell.setBorder(Rectangle.NO_BORDER);
-                totalCell.setPadding(8);
+                totalCell.setPadding(7);
                 totalCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
                 totalCell.setCellEvent(new BottomLineCellEvent());
                 itemsTable.addCell(totalCell);
@@ -300,7 +303,7 @@ class InvoicePdfService {
             PdfPTable bottomTable = new PdfPTable(2);
             bottomTable.setWidthPercentage(100);
             bottomTable.setWidths(new float[]{50, 50});
-            bottomTable.setSpacingAfter(20);
+            bottomTable.setSpacingAfter(12);
 
             // Left Side: Totals Summary
             PdfPCell leftCell = new PdfPCell();
@@ -311,10 +314,10 @@ class InvoicePdfService {
             totalsTable.setWidths(new float[]{60, 40});
             totalsTable.setHorizontalAlignment(Element.ALIGN_LEFT);
 
-            Font summaryLabelFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(80, 80, 80));
-            Font summaryValueFont = new Font(Font.HELVETICA, 10, Font.BOLD, new Color(50, 50, 50));
-            Font netLabelFontBold = new Font(Font.HELVETICA, 11, Font.BOLD, new Color(11, 59, 96));
-            Font netValueFontBold = new Font(Font.HELVETICA, 11, Font.BOLD, new Color(46, 125, 50));
+            Font summaryLabelFont = new Font(Font.HELVETICA, 9.5f, Font.NORMAL, MUTED_TEXT);
+            Font summaryValueFont = new Font(Font.HELVETICA, 9.5f, Font.NORMAL, TEXT);
+            Font netLabelFontBold = new Font(Font.HELVETICA, 10.5f, Font.BOLD, DEEP_HEALTH_BLUE);
+            Font netValueFontBold = new Font(Font.HELVETICA, 10.5f, Font.BOLD, MEDICAL_GREEN);
 
             // Total Brut
             totalsTable.addCell(createSummaryLabelCell("Total Brut :", summaryLabelFont));
@@ -342,15 +345,15 @@ class InvoicePdfService {
             // Right Side: Signature Area
             PdfPCell rightCell = new PdfPCell();
             rightCell.setBorder(Rectangle.NO_BORDER);
-            rightCell.setPaddingTop(15);
+            rightCell.setPaddingTop(6);
             rightCell.setPaddingRight(10);
 
             Paragraph sigPara = new Paragraph();
             sigPara.setAlignment(Element.ALIGN_RIGHT);
-            sigPara.setLeading(14f);
-            sigPara.add(new Chunk("Le Caissier\n\n\n\n", new Font(Font.HELVETICA, 10, Font.BOLD, new Color(11, 59, 96))));
-            sigPara.add(new Chunk("_____________________\n", new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(11, 59, 96))));
-            sigPara.add(new Chunk("Signature & Cachet", new Font(Font.HELVETICA, 8, Font.ITALIC, new Color(100, 100, 100))));
+            sigPara.setLeading(12f);
+            sigPara.add(new Chunk("Le Caissier\n", new Font(Font.HELVETICA, 9.2f, Font.BOLD, DEEP_HEALTH_BLUE)));
+            sigPara.add(new Chunk("\n_____________________\n", new Font(Font.HELVETICA, 9, Font.NORMAL, DEEP_HEALTH_BLUE)));
+            sigPara.add(new Chunk("Signature & Cachet", new Font(Font.HELVETICA, 7.5f, Font.ITALIC, MUTED_TEXT)));
 
             rightCell.addElement(sigPara);
             bottomTable.addCell(rightCell);
@@ -390,34 +393,24 @@ class InvoicePdfService {
 
     // --- Private Static Events & Helpers for Drawing ---
 
-    private static class MedicalCrossCellEvent implements PdfPCellEvent {
+    private static class WalletCellEvent implements PdfPCellEvent {
         @Override
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
-            cb.setColorStroke(new Color(76, 175, 80)); // Green outline
+            cb.setColorStroke(MEDICAL_GREEN);
             cb.setLineWidth(1.5f);
 
-            float width = 30f;
-            float height = 30f;
-            float cx = position.getRight() - 25f;
-            float cy = position.getTop() - height/2 - 10f;
+            float x = position.getRight() - 58f;
+            float y = position.getTop() - 45f;
 
-            float arm = 10f; // Thickness of the cross bars
-
-            cb.moveTo(cx - arm/2, cy + height/2);
-            cb.lineTo(cx + arm/2, cy + height/2);
-            cb.lineTo(cx + arm/2, cy + arm/2);
-            cb.lineTo(cx + width/2, cy + arm/2);
-            cb.lineTo(cx + width/2, cy - arm/2);
-            cb.lineTo(cx + arm/2, cy - arm/2);
-            cb.lineTo(cx + arm/2, cy - height/2);
-            cb.lineTo(cx - arm/2, cy - height/2);
-            cb.lineTo(cx - arm/2, cy - arm/2);
-            cb.lineTo(cx - width/2, cy - arm/2);
-            cb.lineTo(cx - width/2, cy + arm/2);
-            cb.lineTo(cx - arm/2, cy + arm/2);
-            cb.closePath();
+            cb.roundRectangle(x + 8f, y + 7f, 42f, 26f, 4f);
+            cb.moveTo(x + 8f, y + 25f);
+            cb.lineTo(x + 23f, y + 35f);
+            cb.lineTo(x + 50f, y + 35f);
+            cb.lineTo(x + 50f, y + 25f);
+            cb.moveTo(x + 37f, y + 19f);
+            cb.circle(x + 37f, y + 19f, 2.2f);
             cb.stroke();
 
             cb.restoreState();
@@ -429,7 +422,7 @@ class InvoicePdfService {
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
-            cb.setColorStroke(new Color(46, 125, 50)); // Medical Green
+            cb.setColorStroke(MEDICAL_GREEN);
             cb.setLineWidth(3f);
             cb.moveTo(position.getLeft(), position.getBottom() - 4);
             cb.lineTo(position.getLeft() + 35, position.getBottom() - 4); // Short decorative line
@@ -443,8 +436,8 @@ class InvoicePdfService {
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
-            cb.setColorFill(new Color(248, 250, 252)); // Light gray-blue background
-            cb.setColorStroke(new Color(225, 230, 235)); // Soft border
+            cb.setColorFill(LIGHT_CARD);
+            cb.setColorStroke(SOFT_BORDER);
             cb.setLineWidth(1f);
             cb.roundRectangle(
                     position.getLeft(),
@@ -463,7 +456,7 @@ class InvoicePdfService {
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
-            cb.setColorStroke(new Color(76, 175, 80)); // Leaf Green
+            cb.setColorStroke(MEDICAL_GREEN);
             cb.setLineWidth(1.5f);
 
             float cx = position.getLeft() + 15f;
@@ -485,7 +478,7 @@ class InvoicePdfService {
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
-            cb.setColorStroke(new Color(235, 238, 242)); // Light notebook-style divider
+            cb.setColorStroke(SOFT_BORDER);
             cb.setLineWidth(1f);
             cb.moveTo(position.getLeft(), position.getBottom());
             cb.lineTo(position.getRight(), position.getBottom());

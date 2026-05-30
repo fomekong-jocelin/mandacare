@@ -9,7 +9,6 @@ import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
 import com.lowagie.text.Rectangle;
-import com.lowagie.text.pdf.BaseFont;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPCellEvent;
 import com.lowagie.text.pdf.PdfContentByte;
@@ -31,13 +30,17 @@ class LabResultPdfService {
     private static final Color DEEP_HEALTH_BLUE = new Color(11, 59, 96);
     private static final Color MEDICAL_GREEN = new Color(46, 125, 50);
     private static final Color TEXT = new Color(60, 60, 60);
+    private static final Color MUTED_TEXT = new Color(105, 112, 122);
+    private static final Color LIGHT_CARD = new Color(248, 250, 252);
+    private static final Color SOFT_BORDER = new Color(225, 230, 235);
+    private static final Color DANGER = new Color(180, 55, 55);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy")
             .withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
             .withZone(ZoneId.systemDefault());
 
     byte[] generatePdf(LabResultEntity labResult) {
-        Document document = new Document(PageSize.A4, 40, 40, 45, 75);
+        Document document = new Document(PageSize.A4, 40, 40, 40, 54);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         try {
@@ -49,7 +52,6 @@ class LabResultPdfService {
             document.add(titleTable(labResult));
             document.add(patientCard(labResult));
             addResultsSection(document, labResult);
-            document.add(signatureTable());
 
             document.close();
         } catch (Exception e) {
@@ -63,7 +65,7 @@ class LabResultPdfService {
         PdfPTable headerTable = new PdfPTable(2);
         headerTable.setWidthPercentage(100);
         headerTable.setWidths(new float[]{70, 30});
-        headerTable.setSpacingAfter(15);
+        headerTable.setSpacingAfter(10);
 
         PdfPCell cellLeft = new PdfPCell();
         cellLeft.setBorder(Rectangle.NO_BORDER);
@@ -71,7 +73,7 @@ class LabResultPdfService {
             var logoUrl = getClass().getResource("/assets/brand/mandacare_logo_horizontal.png");
             if (logoUrl != null) {
                 Image logo = Image.getInstance(logoUrl);
-                logo.scalePercent(15f);
+                logo.scalePercent(13.5f);
                 cellLeft.addElement(logo);
             } else {
                 addFallbackBrand(cellLeft);
@@ -83,7 +85,7 @@ class LabResultPdfService {
 
         PdfPCell cellRight = new PdfPCell();
         cellRight.setBorder(Rectangle.NO_BORDER);
-        cellRight.setCellEvent(new MedicalCrossCellEvent());
+        cellRight.setCellEvent(new MicroscopeCellEvent());
         headerTable.addCell(cellRight);
         return headerTable;
     }
@@ -99,20 +101,20 @@ class LabResultPdfService {
         PdfPTable titleTable = new PdfPTable(2);
         titleTable.setWidthPercentage(100);
         titleTable.setWidths(new float[]{60, 40});
-        titleTable.setSpacingAfter(20);
+        titleTable.setSpacingAfter(14);
 
-        Font titleFont = new Font(Font.HELVETICA, 22, Font.BOLD, DEEP_HEALTH_BLUE);
+        Font titleFont = new Font(Font.HELVETICA, 20, Font.BOLD, DEEP_HEALTH_BLUE);
         PdfPCell titleCell = new PdfPCell(new Paragraph("Résultats de laboratoire", titleFont));
         titleCell.setBorder(Rectangle.NO_BORDER);
         titleCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
         titleCell.setCellEvent(new GreenUnderlineCellEvent());
         titleTable.addCell(titleCell);
 
-        Font metaLabelFont = new Font(Font.HELVETICA, 10, Font.BOLD, new Color(100, 100, 100));
-        Font metaValueFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(50, 50, 50));
+        Font metaLabelFont = new Font(Font.HELVETICA, 9, Font.BOLD, MUTED_TEXT);
+        Font metaValueFont = new Font(Font.HELVETICA, 9, Font.NORMAL, TEXT);
 
         Paragraph metaPara = new Paragraph();
-        metaPara.setLeading(14f);
+        metaPara.setLeading(12.5f);
         metaPara.setAlignment(Element.ALIGN_RIGHT);
         metaPara.add(new Chunk("Date validation : ", metaLabelFont));
         metaPara.add(new Chunk(DATE_TIME_FORMATTER.format(labResult.createdAt()) + "\n", metaValueFont));
@@ -135,10 +137,10 @@ class LabResultPdfService {
 
         PdfPTable infoCardTable = new PdfPTable(1);
         infoCardTable.setWidthPercentage(100);
-        infoCardTable.setSpacingAfter(20);
+        infoCardTable.setSpacingAfter(14);
 
         PdfPCell cardCell = new PdfPCell();
-        cardCell.setPadding(12);
+        cardCell.setPadding(10);
         cardCell.setBorder(Rectangle.NO_BORDER);
         cardCell.setCellEvent(new RoundedBorderCellEvent());
 
@@ -176,10 +178,10 @@ class LabResultPdfService {
     }
 
     private Paragraph keyValueParagraph(String... parts) {
-        Font labelFont = new Font(Font.HELVETICA, 10, Font.BOLD, DEEP_HEALTH_BLUE);
-        Font valueFont = new Font(Font.HELVETICA, 10, Font.NORMAL, TEXT);
+        Font labelFont = new Font(Font.HELVETICA, 9.2f, Font.BOLD, DEEP_HEALTH_BLUE);
+        Font valueFont = new Font(Font.HELVETICA, 9.2f, Font.NORMAL, TEXT);
         Paragraph paragraph = new Paragraph();
-        paragraph.setLeading(16f);
+        paragraph.setLeading(14f);
         for (int i = 0; i < parts.length; i += 2) {
             paragraph.add(new Chunk(parts[i], labelFont));
             paragraph.add(new Chunk(valueOrDash(parts[i + 1]) + "\n", valueFont));
@@ -197,12 +199,13 @@ class LabResultPdfService {
             document.add(sectionHeading("Observations du laboratoire"));
             document.add(observationTable(labResult.observations()));
         }
+        document.add(signatureTable());
     }
 
     private Paragraph sectionHeading(String value) {
-        Paragraph heading = new Paragraph(value, new Font(Font.HELVETICA, 12, Font.BOLD, DEEP_HEALTH_BLUE));
-        heading.setSpacingBefore(6);
-        heading.setSpacingAfter(6);
+        Paragraph heading = new Paragraph(value, new Font(Font.HELVETICA, 11.2f, Font.BOLD, DEEP_HEALTH_BLUE));
+        heading.setSpacingBefore(5);
+        heading.setSpacingAfter(7);
         return heading;
     }
 
@@ -210,29 +213,37 @@ class LabResultPdfService {
         PdfPTable table = new PdfPTable(2);
         table.setWidthPercentage(100);
         table.setWidths(new float[]{68, 32});
-        table.setSpacingAfter(12);
+        table.setSpacingAfter(14);
 
         table.addCell(summaryCell("Type d'examen", compactExamType(labResult.examType()), TEXT));
         table.addCell(summaryCell(
                 "Statut",
                 labResult.normalResults() ? "Résultats normaux" : "Résultats à interpréter",
-                labResult.normalResults() ? MEDICAL_GREEN : new Color(180, 55, 55)
+                labResult.normalResults() ? MEDICAL_GREEN : DANGER
         ));
         return table;
     }
 
     private PdfPCell summaryCell(String label, String value, Color valueColor) {
-        Font labelFont = new Font(Font.HELVETICA, 10, Font.BOLD, DEEP_HEALTH_BLUE);
-        Font valueFont = new Font(Font.HELVETICA, 10.5f, Font.BOLD, valueColor);
-        Paragraph paragraph = new Paragraph();
-        paragraph.setLeading(15f);
-        paragraph.add(new Chunk(label + "\n", labelFont));
-        paragraph.add(new Chunk(valueOrDash(value), valueFont));
+        Font labelFont = new Font(Font.HELVETICA, 8.8f, Font.BOLD, MUTED_TEXT);
+        Font valueFont = new Font(Font.HELVETICA, 10.2f, Font.NORMAL, valueColor);
 
-        PdfPCell cell = new PdfPCell(paragraph);
-        cell.setPadding(10);
-        cell.setBorderColor(new Color(225, 230, 235));
-        cell.setBackgroundColor(new Color(248, 250, 252));
+        Paragraph labelParagraph = new Paragraph(label, labelFont);
+        labelParagraph.setLeading(10f);
+        labelParagraph.setSpacingAfter(5);
+
+        Paragraph valueParagraph = new Paragraph(valueOrDash(value), valueFont);
+        valueParagraph.setLeading(12.5f);
+
+        PdfPCell cell = new PdfPCell();
+        cell.setPaddingTop(9);
+        cell.setPaddingBottom(10);
+        cell.setPaddingLeft(10);
+        cell.setPaddingRight(10);
+        cell.setBorderColor(SOFT_BORDER);
+        cell.setBackgroundColor(LIGHT_CARD);
+        cell.addElement(labelParagraph);
+        cell.addElement(valueParagraph);
         return cell;
     }
 
@@ -243,24 +254,24 @@ class LabResultPdfService {
         table.setHeaderRows(1);
         table.setSplitRows(true);
         table.setSplitLate(false);
-        table.setSpacingAfter(12);
+        table.setSpacingAfter(14);
 
         table.addCell(headerCell("Analyse"));
         table.addCell(headerCell("Statut"));
         table.addCell(headerCell("Résultat"));
 
         for (AnalysisResultLine line : lines) {
-            table.addCell(bodyCell(line.name(), new Font(Font.HELVETICA, 10, Font.BOLD, DEEP_HEALTH_BLUE)));
-            table.addCell(bodyCell(line.status(), new Font(Font.HELVETICA, 9.5f, Font.BOLD, statusColor(line.status()))));
-            table.addCell(bodyCell(line.result(), new Font(Font.HELVETICA, 9.5f, Font.NORMAL, TEXT)));
+            table.addCell(bodyCell(line.name(), new Font(Font.HELVETICA, 9.4f, Font.BOLD, DEEP_HEALTH_BLUE)));
+            table.addCell(bodyCell(line.status(), new Font(Font.HELVETICA, 9.2f, Font.NORMAL, statusColor(line.status()))));
+            table.addCell(bodyCell(line.result(), new Font(Font.HELVETICA, 9.2f, Font.NORMAL, TEXT)));
         }
 
         return table;
     }
 
     private PdfPCell headerCell(String value) {
-        PdfPCell cell = new PdfPCell(new Phrase(value, new Font(Font.HELVETICA, 10, Font.BOLD, Color.WHITE)));
-        cell.setPadding(7);
+        PdfPCell cell = new PdfPCell(new Phrase(value, new Font(Font.HELVETICA, 9.5f, Font.BOLD, Color.WHITE)));
+        cell.setPadding(6);
         cell.setBorderColor(DEEP_HEALTH_BLUE);
         cell.setBackgroundColor(DEEP_HEALTH_BLUE);
         return cell;
@@ -268,9 +279,12 @@ class LabResultPdfService {
 
     private PdfPCell bodyCell(String value, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase(valueOrDash(value), font));
-        cell.setPadding(7);
-        cell.setLeading(0, 1.15f);
-        cell.setBorderColor(new Color(225, 230, 235));
+        cell.setPaddingTop(7);
+        cell.setPaddingBottom(7);
+        cell.setPaddingLeft(7);
+        cell.setPaddingRight(7);
+        cell.setLeading(0, 1.22f);
+        cell.setBorderColor(SOFT_BORDER);
         cell.setBackgroundColor(Color.WHITE);
         return cell;
     }
@@ -278,10 +292,12 @@ class LabResultPdfService {
     private PdfPTable observationTable(String observations) {
         PdfPTable table = new PdfPTable(1);
         table.setWidthPercentage(100);
-        table.setSpacingAfter(18);
+        table.setSpacingAfter(12);
 
-        PdfPCell cell = bodyCell(observations, new Font(Font.HELVETICA, 10, Font.NORMAL, TEXT));
-        cell.setBackgroundColor(new Color(248, 250, 252));
+        PdfPCell cell = bodyCell(observations, new Font(Font.HELVETICA, 9.5f, Font.NORMAL, TEXT));
+        cell.setPaddingTop(9);
+        cell.setPaddingBottom(9);
+        cell.setBackgroundColor(LIGHT_CARD);
         table.addCell(cell);
         return table;
     }
@@ -341,7 +357,7 @@ class LabResultPdfService {
         if (normalized.contains("anormal")
                 || normalized.contains("interpr")
                 || normalized.contains("patholog")) {
-            return new Color(180, 55, 55);
+            return DANGER;
         }
         if (normalized.contains("normal")) {
             return MEDICAL_GREEN;
@@ -352,7 +368,8 @@ class LabResultPdfService {
     private PdfPTable signatureTable() throws Exception {
         PdfPTable table = new PdfPTable(2);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{50, 50});
+        table.setWidths(new float[]{58, 42});
+        table.setSpacingBefore(4);
 
         PdfPCell left = new PdfPCell(new Phrase(""));
         left.setBorder(Rectangle.NO_BORDER);
@@ -360,10 +377,10 @@ class LabResultPdfService {
 
         Paragraph signature = new Paragraph();
         signature.setAlignment(Element.ALIGN_RIGHT);
-        signature.setLeading(14f);
-        signature.add(new Chunk("Responsable laboratoire\n\n\n\n", new Font(Font.HELVETICA, 10, Font.BOLD, DEEP_HEALTH_BLUE)));
-        signature.add(new Chunk("_____________________\n", new Font(Font.HELVETICA, 10, Font.NORMAL, DEEP_HEALTH_BLUE)));
-        signature.add(new Chunk("Signature & Cachet", new Font(Font.HELVETICA, 8, Font.ITALIC, new Color(100, 100, 100))));
+        signature.setLeading(12f);
+        signature.add(new Chunk("Responsable laboratoire\n", new Font(Font.HELVETICA, 9.2f, Font.BOLD, DEEP_HEALTH_BLUE)));
+        signature.add(new Chunk("\n_____________________\n", new Font(Font.HELVETICA, 9, Font.NORMAL, DEEP_HEALTH_BLUE)));
+        signature.add(new Chunk("Signature & Cachet", new Font(Font.HELVETICA, 7.5f, Font.ITALIC, MUTED_TEXT)));
 
         PdfPCell right = new PdfPCell(signature);
         right.setBorder(Rectangle.NO_BORDER);
@@ -395,13 +412,13 @@ class LabResultPdfService {
             float width = document.getPageSize().getWidth();
             cb.setColorFill(DEEP_HEALTH_BLUE);
             cb.moveTo(0, 0);
-            cb.lineTo(0, 20);
-            cb.curveTo(width * 0.25f, 32, width * 0.5f, 15, width * 0.75f, 0);
+            cb.lineTo(0, 16);
+            cb.curveTo(width * 0.25f, 25, width * 0.5f, 12, width * 0.75f, 0);
             cb.lineTo(0, 0);
             cb.fill();
             cb.setColorFill(MEDICAL_GREEN);
             cb.moveTo(width * 0.45f, 0);
-            cb.curveTo(width * 0.6f, 12, width * 0.8f, 25, width, 35);
+            cb.curveTo(width * 0.6f, 9, width * 0.8f, 20, width, 28);
             cb.lineTo(width, 0);
             cb.lineTo(width * 0.45f, 0);
             cb.fill();
@@ -409,31 +426,29 @@ class LabResultPdfService {
         }
     }
 
-    private static class MedicalCrossCellEvent implements PdfPCellEvent {
+    private static class MicroscopeCellEvent implements PdfPCellEvent {
         @Override
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
             cb.setColorStroke(MEDICAL_GREEN);
             cb.setLineWidth(1.5f);
-            float width = 30f;
-            float height = 30f;
-            float cx = position.getRight() - 25f;
-            float cy = position.getTop() - height / 2 - 10f;
-            float arm = 10f;
-            cb.moveTo(cx - arm / 2, cy + height / 2);
-            cb.lineTo(cx + arm / 2, cy + height / 2);
-            cb.lineTo(cx + arm / 2, cy + arm / 2);
-            cb.lineTo(cx + width / 2, cy + arm / 2);
-            cb.lineTo(cx + width / 2, cy - arm / 2);
-            cb.lineTo(cx + arm / 2, cy - arm / 2);
-            cb.lineTo(cx + arm / 2, cy - height / 2);
-            cb.lineTo(cx - arm / 2, cy - height / 2);
-            cb.lineTo(cx - arm / 2, cy - arm / 2);
-            cb.lineTo(cx - width / 2, cy - arm / 2);
-            cb.lineTo(cx - width / 2, cy + arm / 2);
-            cb.lineTo(cx - arm / 2, cy + arm / 2);
-            cb.closePath();
+
+            float x = position.getRight() - 58f;
+            float y = position.getTop() - 52f;
+
+            cb.rectangle(x + 24f, y + 35f, 18f, 6f);
+            cb.moveTo(x + 30f, y + 35f);
+            cb.lineTo(x + 21f, y + 25f);
+            cb.lineTo(x + 25f, y + 22f);
+            cb.lineTo(x + 34f, y + 32f);
+            cb.moveTo(x + 20f, y + 24f);
+            cb.curveTo(x + 41f, y + 25f, x + 44f, y + 10f, x + 30f, y + 9f);
+            cb.moveTo(x + 15f, y + 19f);
+            cb.lineTo(x + 45f, y + 19f);
+            cb.moveTo(x + 32f, y + 19f);
+            cb.lineTo(x + 32f, y + 9f);
+            cb.roundRectangle(x + 12f, y + 4f, 38f, 6f, 3f);
             cb.stroke();
             cb.restoreState();
         }
@@ -459,7 +474,7 @@ class LabResultPdfService {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
             cb.setColorFill(new Color(248, 250, 252));
-            cb.setColorStroke(new Color(225, 230, 235));
+            cb.setColorStroke(SOFT_BORDER);
             cb.setLineWidth(1f);
             cb.roundRectangle(position.getLeft(), position.getBottom(), position.getWidth(), position.getHeight(), 10f);
             cb.fillStroke();

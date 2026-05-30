@@ -13,12 +13,17 @@ import java.time.format.DateTimeFormatter;
 @Service
 class PrescriptionPdfService {
 
+    private static final Color DEEP_HEALTH_BLUE = new Color(11, 59, 96);
+    private static final Color MEDICAL_GREEN = new Color(46, 125, 50);
+    private static final Color TEXT = new Color(60, 60, 60);
+    private static final Color MUTED_TEXT = new Color(105, 112, 122);
+    private static final Color LIGHT_CARD = new Color(248, 250, 252);
+    private static final Color SOFT_BORDER = new Color(225, 230, 235);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy")
             .withZone(ZoneId.systemDefault());
 
     public byte[] generatePdf(PrescriptionEntity prescription) {
-        // Margins: Left 40, Right 40, Top 45, Bottom 70 (gives safe space for footer background curves)
-        Document document = new Document(PageSize.A4, 40, 40, 45, 75);
+        Document document = new Document(PageSize.A4, 40, 40, 40, 54);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         try {
@@ -34,17 +39,16 @@ class PrescriptionPdfService {
                     float width = document.getPageSize().getWidth();
                     
                     // 1. Bottom Dark Blue Wave
-                    cb.setColorFill(new Color(11, 59, 96)); // Deep Health Blue
+                    cb.setColorFill(DEEP_HEALTH_BLUE);
                     cb.moveTo(0, 0);
-                    cb.lineTo(0, 20);
-                    cb.curveTo(width * 0.25f, 32, width * 0.5f, 15, width * 0.75f, 0);
+                    cb.lineTo(0, 16);
+                    cb.curveTo(width * 0.25f, 25, width * 0.5f, 12, width * 0.75f, 0);
                     cb.lineTo(0, 0);
                     cb.fill();
                     
-                    // 2. Bottom Green Wave
-                    cb.setColorFill(new Color(46, 125, 50)); // Medical Green
+                    cb.setColorFill(MEDICAL_GREEN);
                     cb.moveTo(width * 0.45f, 0);
-                    cb.curveTo(width * 0.6f, 12, width * 0.8f, 25, width, 35);
+                    cb.curveTo(width * 0.6f, 9, width * 0.8f, 20, width, 28);
                     cb.lineTo(width, 0);
                     cb.lineTo(width * 0.45f, 0);
                     cb.fill();
@@ -75,7 +79,7 @@ class PrescriptionPdfService {
             PdfPTable headerTable = new PdfPTable(2);
             headerTable.setWidthPercentage(100);
             headerTable.setWidths(new float[]{70, 30});
-            headerTable.setSpacingAfter(15);
+            headerTable.setSpacingAfter(10);
 
             PdfPCell cellLeft = new PdfPCell();
             cellLeft.setBorder(Rectangle.NO_BORDER);
@@ -85,19 +89,19 @@ class PrescriptionPdfService {
                 var logoUrl = getClass().getResource("/assets/brand/mandacare_logo_horizontal.png");
                 if (logoUrl != null) {
                     Image logo = Image.getInstance(logoUrl);
-                    logo.scalePercent(15f); // Scale to fit nicely (roughly 150 points width)
+                    logo.scalePercent(13.5f);
                     cellLeft.addElement(logo);
                 } else {
                     // Fallback to stylized text
-                    Font brandFont = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(11, 59, 96));
-                    Font subBrandFont = new Font(Font.HELVETICA, 10, Font.ITALIC, new Color(46, 125, 50));
+                    Font brandFont = new Font(Font.HELVETICA, 20, Font.BOLD, DEEP_HEALTH_BLUE);
+                    Font subBrandFont = new Font(Font.HELVETICA, 10, Font.ITALIC, MEDICAL_GREEN);
                     cellLeft.addElement(new Paragraph("MandaCare", brandFont));
                     cellLeft.addElement(new Paragraph("Soigner mieux, gérer simplement.", subBrandFont));
                 }
             } catch (Exception e) {
                 // Fallback to stylized text
-                Font brandFont = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(11, 59, 96));
-                Font subBrandFont = new Font(Font.HELVETICA, 10, Font.ITALIC, new Color(46, 125, 50));
+                Font brandFont = new Font(Font.HELVETICA, 20, Font.BOLD, DEEP_HEALTH_BLUE);
+                Font subBrandFont = new Font(Font.HELVETICA, 10, Font.ITALIC, MEDICAL_GREEN);
                 cellLeft.addElement(new Paragraph("MandaCare", brandFont));
                 cellLeft.addElement(new Paragraph("Soigner mieux, gérer simplement.", subBrandFont));
             }
@@ -115,10 +119,10 @@ class PrescriptionPdfService {
             PdfPTable titleTable = new PdfPTable(2);
             titleTable.setWidthPercentage(100);
             titleTable.setWidths(new float[]{60, 40});
-            titleTable.setSpacingAfter(20);
+            titleTable.setSpacingAfter(14);
 
             // Left side: Title with a short green underline
-            Font titleFont = new Font(Font.HELVETICA, 22, Font.BOLD, new Color(11, 59, 96));
+            Font titleFont = new Font(Font.HELVETICA, 20, Font.BOLD, DEEP_HEALTH_BLUE);
             PdfPCell titleCell = new PdfPCell(new Paragraph("Ordonnance", titleFont));
             titleCell.setBorder(Rectangle.NO_BORDER);
             titleCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
@@ -126,15 +130,15 @@ class PrescriptionPdfService {
             titleTable.addCell(titleCell);
 
             // Right side: Date and number
-            Font metaLabelFont = new Font(Font.HELVETICA, 10, Font.BOLD, new Color(100, 100, 100));
-            Font metaValueFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(50, 50, 50));
+            Font metaLabelFont = new Font(Font.HELVETICA, 9, Font.BOLD, MUTED_TEXT);
+            Font metaValueFont = new Font(Font.HELVETICA, 9, Font.NORMAL, TEXT);
             
             PdfPCell metaCell = new PdfPCell();
             metaCell.setBorder(Rectangle.NO_BORDER);
             metaCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
             
             Paragraph metaPara = new Paragraph();
-            metaPara.setLeading(14f);
+            metaPara.setLeading(12.5f);
             metaPara.setAlignment(Element.ALIGN_RIGHT);
             metaPara.add(new Chunk("Date : ", metaLabelFont));
             metaPara.add(new Chunk(DATE_FORMATTER.format(prescription.createdAt()) + "\n", metaValueFont));
@@ -154,15 +158,15 @@ class PrescriptionPdfService {
                     ? patient.birthDate().toString() 
                     : (patient.declaredAge() != null ? patient.declaredAge() + " ans" : "-");
 
-            Font infoHeaderFont = new Font(Font.HELVETICA, 10, Font.BOLD, new Color(11, 59, 96));
-            Font infoValFont = new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(60, 60, 60));
+            Font infoHeaderFont = new Font(Font.HELVETICA, 9.2f, Font.BOLD, DEEP_HEALTH_BLUE);
+            Font infoValFont = new Font(Font.HELVETICA, 9.2f, Font.NORMAL, TEXT);
 
             PdfPTable infoCardTable = new PdfPTable(1);
             infoCardTable.setWidthPercentage(100);
-            infoCardTable.setSpacingAfter(25);
+            infoCardTable.setSpacingAfter(14);
 
             PdfPCell cardCell = new PdfPCell();
-            cardCell.setPadding(12);
+            cardCell.setPadding(10);
             cardCell.setBorder(Rectangle.NO_BORDER);
             cardCell.setCellEvent(new RoundedBorderCellEvent());
 
@@ -180,7 +184,7 @@ class PrescriptionPdfService {
             PdfPCell patientDetailsCell = new PdfPCell();
             patientDetailsCell.setBorder(Rectangle.NO_BORDER);
             Paragraph pDetails = new Paragraph();
-            pDetails.setLeading(16f);
+            pDetails.setLeading(14f);
             pDetails.add(new Chunk("Patient : ", infoHeaderFont));
             pDetails.add(new Chunk(patientName + "\n", infoValFont));
             pDetails.add(new Chunk("Âge / Sexe : ", infoHeaderFont));
@@ -194,7 +198,7 @@ class PrescriptionPdfService {
             PdfPCell doctorDetailsCell = new PdfPCell();
             doctorDetailsCell.setBorder(Rectangle.NO_BORDER);
             Paragraph dDetails = new Paragraph();
-            dDetails.setLeading(16f);
+            dDetails.setLeading(14f);
             dDetails.add(new Chunk("Médecin : ", infoHeaderFont));
             dDetails.add(new Chunk("Dr Manda\n", infoValFont));
             dDetails.add(new Chunk("Spécialité : ", infoHeaderFont));
@@ -211,9 +215,9 @@ class PrescriptionPdfService {
             // 4. Prescription lines. Keep rows splittable to avoid blank pages on long prescriptions.
             Paragraph medicationTitle = new Paragraph(
                     "Médicaments prescrits",
-                    new Font(Font.HELVETICA, 12, Font.BOLD, new Color(11, 59, 96))
+                    new Font(Font.HELVETICA, 11.2f, Font.BOLD, DEEP_HEALTH_BLUE)
             );
-            medicationTitle.setSpacingAfter(8);
+            medicationTitle.setSpacingAfter(7);
             document.add(medicationTitle);
 
             PdfPTable drugsTable = new PdfPTable(4);
@@ -222,7 +226,7 @@ class PrescriptionPdfService {
             drugsTable.setHeaderRows(1);
             drugsTable.setSplitRows(true);
             drugsTable.setSplitLate(false);
-            drugsTable.setSpacingAfter(18);
+            drugsTable.setSpacingAfter(14);
 
             drugsTable.addCell(tableHeaderCell("Médicament"));
             drugsTable.addCell(tableHeaderCell("Posologie"));
@@ -232,7 +236,7 @@ class PrescriptionPdfService {
             if (prescription.items().isEmpty()) {
                 PdfPCell emptyCell = tableBodyCell(
                         "Aucun médicament prescrit dans cette ordonnance.",
-                        new Font(Font.HELVETICA, 10, Font.ITALIC, new Color(120, 120, 120)),
+                        new Font(Font.HELVETICA, 9.5f, Font.ITALIC, MUTED_TEXT),
                         Color.WHITE
                 );
                 emptyCell.setColspan(4);
@@ -240,20 +244,20 @@ class PrescriptionPdfService {
             } else {
                 boolean alternate = false;
                 for (PrescriptionItemEntity item : prescription.items()) {
-                    Color rowBg = alternate ? new Color(245, 247, 250) : Color.WHITE;
+                    Color rowBg = alternate ? LIGHT_CARD : Color.WHITE;
                     alternate = !alternate;
 
                     Paragraph drugName = new Paragraph();
                     drugName.setLeading(13f);
-                    drugName.add(new Chunk(item.drugName(), new Font(Font.HELVETICA, 10, Font.BOLD, new Color(11, 59, 96))));
+                    drugName.add(new Chunk(item.drugName(), new Font(Font.HELVETICA, 9.4f, Font.BOLD, DEEP_HEALTH_BLUE)));
                     if (item.form() != null && !item.form().isBlank()) {
-                        drugName.add(new Chunk("\n" + item.form(), new Font(Font.HELVETICA, 9, Font.ITALIC, new Color(100, 100, 100))));
+                        drugName.add(new Chunk("\n" + item.form(), new Font(Font.HELVETICA, 8.8f, Font.ITALIC, MUTED_TEXT)));
                     }
 
                     drugsTable.addCell(tableBodyCell(drugName, rowBg));
-                    drugsTable.addCell(tableBodyCell(posology(item), new Font(Font.HELVETICA, 9.5f, Font.NORMAL, new Color(60, 60, 60)), rowBg));
-                    drugsTable.addCell(tableBodyCell(durationAndQuantity(item), new Font(Font.HELVETICA, 9.5f, Font.NORMAL, new Color(60, 60, 60)), rowBg));
-                    drugsTable.addCell(tableBodyCell(valueOrDash(item.instructions()), new Font(Font.HELVETICA, 9.5f, Font.ITALIC, new Color(80, 80, 80)), rowBg));
+                    drugsTable.addCell(tableBodyCell(posology(item), new Font(Font.HELVETICA, 9.2f, Font.NORMAL, TEXT), rowBg));
+                    drugsTable.addCell(tableBodyCell(durationAndQuantity(item), new Font(Font.HELVETICA, 9.2f, Font.NORMAL, TEXT), rowBg));
+                    drugsTable.addCell(tableBodyCell(valueOrDash(item.instructions()), new Font(Font.HELVETICA, 9.2f, Font.ITALIC, TEXT), rowBg));
                 }
             }
 
@@ -270,14 +274,14 @@ class PrescriptionPdfService {
 
             PdfPCell rightSig = new PdfPCell();
             rightSig.setBorder(Rectangle.NO_BORDER);
-            rightSig.setPaddingTop(40);
+            rightSig.setPaddingTop(6);
             rightSig.setPaddingRight(10);
             
             Paragraph sigPara = new Paragraph();
             sigPara.setAlignment(Element.ALIGN_RIGHT);
-            sigPara.setLeading(14f);
-            sigPara.add(new Chunk("Signature & Cachet\n", new Font(Font.HELVETICA, 10, Font.BOLD, new Color(11, 59, 96))));
-            sigPara.add(new Chunk("_____________________\n", new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(11, 59, 96))));
+            sigPara.setLeading(12f);
+            sigPara.add(new Chunk("Signature & Cachet\n", new Font(Font.HELVETICA, 9.2f, Font.BOLD, DEEP_HEALTH_BLUE)));
+            sigPara.add(new Chunk("_____________________\n", new Font(Font.HELVETICA, 9, Font.NORMAL, DEEP_HEALTH_BLUE)));
             
             rightSig.addElement(sigPara);
             signatureTable.addCell(rightSig);
@@ -293,10 +297,10 @@ class PrescriptionPdfService {
     }
 
     private static PdfPCell tableHeaderCell(String value) {
-        PdfPCell cell = new PdfPCell(new Phrase(value, new Font(Font.HELVETICA, 10, Font.BOLD, Color.WHITE)));
-        cell.setBackgroundColor(new Color(11, 59, 96));
-        cell.setBorderColor(new Color(11, 59, 96));
-        cell.setPadding(7);
+        PdfPCell cell = new PdfPCell(new Phrase(value, new Font(Font.HELVETICA, 9.5f, Font.BOLD, Color.WHITE)));
+        cell.setBackgroundColor(DEEP_HEALTH_BLUE);
+        cell.setBorderColor(DEEP_HEALTH_BLUE);
+        cell.setPadding(6);
         return cell;
     }
 
@@ -306,9 +310,12 @@ class PrescriptionPdfService {
 
     private static PdfPCell tableBodyCell(Phrase phrase, Color backgroundColor) {
         PdfPCell cell = new PdfPCell(phrase);
-        cell.setPadding(7);
-        cell.setLeading(0, 1.15f);
-        cell.setBorderColor(new Color(225, 230, 235));
+        cell.setPaddingTop(7);
+        cell.setPaddingBottom(7);
+        cell.setPaddingLeft(7);
+        cell.setPaddingRight(7);
+        cell.setLeading(0, 1.22f);
+        cell.setBorderColor(SOFT_BORDER);
         cell.setBackgroundColor(backgroundColor);
         return cell;
     }
@@ -350,7 +357,7 @@ class PrescriptionPdfService {
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
-            cb.setColorStroke(new Color(76, 175, 80)); // Green outline
+            cb.setColorStroke(MEDICAL_GREEN);
             cb.setLineWidth(1.5f);
             
             float width = 30f;
@@ -385,7 +392,7 @@ class PrescriptionPdfService {
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
-            cb.setColorStroke(new Color(46, 125, 50)); // Medical Green
+            cb.setColorStroke(MEDICAL_GREEN);
             cb.setLineWidth(3f);
             cb.moveTo(position.getLeft(), position.getBottom() - 4);
             cb.lineTo(position.getLeft() + 35, position.getBottom() - 4); // Short decorative line
@@ -399,8 +406,8 @@ class PrescriptionPdfService {
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
-            cb.setColorFill(new Color(248, 250, 252)); // Light gray-blue background
-            cb.setColorStroke(new Color(225, 230, 235)); // Soft border
+            cb.setColorFill(LIGHT_CARD);
+            cb.setColorStroke(SOFT_BORDER);
             cb.setLineWidth(1f);
             cb.roundRectangle(
                 position.getLeft(), 
@@ -419,7 +426,7 @@ class PrescriptionPdfService {
         public void cellLayout(PdfPCell cell, Rectangle position, PdfContentByte[] canvases) {
             PdfContentByte cb = canvases[PdfPTable.BACKGROUNDCANVAS];
             cb.saveState();
-            cb.setColorStroke(new Color(76, 175, 80)); // Leaf Green
+            cb.setColorStroke(MEDICAL_GREEN);
             cb.setLineWidth(1.5f);
             
             float cx = position.getLeft() + 15f;
