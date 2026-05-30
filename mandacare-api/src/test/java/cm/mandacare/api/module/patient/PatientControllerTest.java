@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -15,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.UUID;
 import com.jayway.jsonpath.JsonPath;
+import com.lowagie.text.pdf.PdfReader;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -22,6 +24,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -461,9 +464,11 @@ class PatientControllerTest {
         org.junit.jupiter.api.Assertions.assertEquals(initialInvoicesCount + 1, invoices.count());
         org.junit.jupiter.api.Assertions.assertEquals(initialPaymentsCount + 1, payments.count());
 
-        mockMvc.perform(get("/api/v1/visits/{id}/invoice/pdf", visitId))
+        MvcResult invoicePdf = mockMvc.perform(get("/api/v1/visits/{id}/invoice/pdf", visitId))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Type", "application/pdf"));
+                .andExpect(header().string("Content-Type", "application/pdf"))
+                .andReturn();
+        assertValidPdf(invoicePdf);
 
         mockMvc.perform(get("/api/v1/visits/{id}/invoices", visitId)
                         .with(user("doctor")))
@@ -891,9 +896,11 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.items", hasSize(2)));
 
         // 6. Get PDF bytes
-        mockMvc.perform(get("/api/v1/consultations/{id}/prescription/pdf", consultationId))
+        MvcResult prescriptionPdf = mockMvc.perform(get("/api/v1/consultations/{id}/prescription/pdf", consultationId))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Type", "application/pdf"));
+                .andExpect(header().string("Content-Type", "application/pdf"))
+                .andReturn();
+        assertValidPdf(prescriptionPdf);
     }
 
     @Test
@@ -1065,9 +1072,19 @@ class PatientControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestVisit.status").value("IN_CONSULTATION"));
 
-        mockMvc.perform(get("/api/v1/visits/{id}/lab-results/pdf", visitId))
+        MvcResult labResultPdf = mockMvc.perform(get("/api/v1/visits/{id}/lab-results/pdf", visitId))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Type", "application/pdf"));
+                .andExpect(header().string("Content-Type", "application/pdf"))
+                .andReturn();
+        assertValidPdf(labResultPdf);
+    }
+
+    private void assertValidPdf(MvcResult result) throws Exception {
+        byte[] content = result.getResponse().getContentAsByteArray();
+        assertTrue(content.length > 500, "PDF response should not be empty");
+        try (PdfReader reader = new PdfReader(content)) {
+            assertTrue(reader.getNumberOfPages() >= 1, "PDF should contain at least one page");
+        }
     }
 
     private String validPatientJson(String firstName, String lastName, String phone) {

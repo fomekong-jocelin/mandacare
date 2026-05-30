@@ -219,6 +219,9 @@ class InvoicePdfService {
             PdfPTable itemsTable = new PdfPTable(5);
             itemsTable.setWidthPercentage(100);
             itemsTable.setWidths(new float[]{40, 15, 15, 12, 18});
+            itemsTable.setHeaderRows(1);
+            itemsTable.setSplitRows(true);
+            itemsTable.setSplitLate(false);
             itemsTable.setSpacingAfter(20);
 
             // Table Headers

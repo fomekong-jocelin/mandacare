@@ -208,78 +208,58 @@ class PrescriptionPdfService {
             infoCardTable.addCell(cardCell);
             document.add(infoCardTable);
 
-            // 4. Rx Prescription Box
-            PdfPTable rxOuterTable = new PdfPTable(1);
-            rxOuterTable.setWidthPercentage(100);
-            
-            PdfPCell rxOuterCell = new PdfPCell();
-            rxOuterCell.setPadding(25);
-            rxOuterCell.setPaddingTop(35); // leaves room for the Rx watermark
-            rxOuterCell.setBorder(Rectangle.NO_BORDER);
-            rxOuterCell.setCellEvent(new RxBoxCellEvent());
+            // 4. Prescription lines. Keep rows splittable to avoid blank pages on long prescriptions.
+            Paragraph medicationTitle = new Paragraph(
+                    "Médicaments prescrits",
+                    new Font(Font.HELVETICA, 12, Font.BOLD, new Color(11, 59, 96))
+            );
+            medicationTitle.setSpacingAfter(8);
+            document.add(medicationTitle);
 
-            // Inner drugs list table
-            PdfPTable drugsTable = new PdfPTable(1);
+            PdfPTable drugsTable = new PdfPTable(4);
             drugsTable.setWidthPercentage(100);
+            drugsTable.setWidths(new float[]{30, 27, 18, 25});
+            drugsTable.setHeaderRows(1);
+            drugsTable.setSplitRows(true);
+            drugsTable.setSplitLate(false);
+            drugsTable.setSpacingAfter(18);
+
+            drugsTable.addCell(tableHeaderCell("Médicament"));
+            drugsTable.addCell(tableHeaderCell("Posologie"));
+            drugsTable.addCell(tableHeaderCell("Durée / Qté"));
+            drugsTable.addCell(tableHeaderCell("Instructions"));
 
             if (prescription.items().isEmpty()) {
-                PdfPCell emptyCell = new PdfPCell(new Paragraph("Aucun médicament prescrit dans cette ordonnance.", new Font(Font.HELVETICA, 10, Font.ITALIC, new Color(120, 120, 120))));
-                emptyCell.setBorder(Rectangle.NO_BORDER);
-                emptyCell.setPadding(15);
-                emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                PdfPCell emptyCell = tableBodyCell(
+                        "Aucun médicament prescrit dans cette ordonnance.",
+                        new Font(Font.HELVETICA, 10, Font.ITALIC, new Color(120, 120, 120)),
+                        Color.WHITE
+                );
+                emptyCell.setColspan(4);
                 drugsTable.addCell(emptyCell);
             } else {
+                boolean alternate = false;
                 for (PrescriptionItemEntity item : prescription.items()) {
-                    PdfPCell drugCell = new PdfPCell();
-                    drugCell.setBorder(Rectangle.NO_BORDER);
-                    drugCell.setCellEvent(new BottomLineCellEvent());
-                    drugCell.setPaddingBottom(12);
-                    drugCell.setPaddingTop(12);
+                    Color rowBg = alternate ? new Color(245, 247, 250) : Color.WHITE;
+                    alternate = !alternate;
 
-                    Paragraph drugPara = new Paragraph();
-                    drugPara.setLeading(17f);
-                    
-                    // 1. Drug name & Form
-                    drugPara.add(new Chunk(item.drugName(), new Font(Font.HELVETICA, 11, Font.BOLD, new Color(11, 59, 96))));
-                    if (item.form() != null) {
-                        drugPara.add(new Chunk(" (" + item.form() + ")", new Font(Font.HELVETICA, 10, Font.ITALIC, new Color(100, 100, 100))));
-                    }
-                    drugPara.add(new Chunk("\n"));
-
-                    // 2. Dosage / Frequency / Duration / Qty
-                    String posologyStr = "";
-                    if (item.dosage() != null) posologyStr += "Dosage : " + item.dosage();
-                    if (item.frequency() != null) {
-                        if (!posologyStr.isEmpty()) posologyStr += "   |   ";
-                        posologyStr += "Fréquence : " + item.frequency();
-                    }
-                    if (item.duration() != null) {
-                        if (!posologyStr.isEmpty()) posologyStr += "   |   ";
-                        posologyStr += "Durée : " + item.duration();
-                    }
-                    if (item.quantity() != null) {
-                        if (!posologyStr.isEmpty()) posologyStr += "   |   ";
-                        posologyStr += "Qté : " + item.quantity() + " boîte(s)";
-                    }
-                    
-                    if (!posologyStr.isEmpty()) {
-                        drugPara.add(new Chunk(posologyStr + "\n", new Font(Font.HELVETICA, 9.5f, Font.NORMAL, new Color(60, 60, 60))));
+                    Paragraph drugName = new Paragraph();
+                    drugName.setLeading(13f);
+                    drugName.add(new Chunk(item.drugName(), new Font(Font.HELVETICA, 10, Font.BOLD, new Color(11, 59, 96))));
+                    if (item.form() != null && !item.form().isBlank()) {
+                        drugName.add(new Chunk("\n" + item.form(), new Font(Font.HELVETICA, 9, Font.ITALIC, new Color(100, 100, 100))));
                     }
 
-                    // 3. Instructions
-                    if (item.instructions() != null && !item.instructions().isEmpty()) {
-                        drugPara.add(new Chunk("Instructions : ", new Font(Font.HELVETICA, 9.5f, Font.BOLD, new Color(100, 100, 100))));
-                        drugPara.add(new Chunk(item.instructions(), new Font(Font.HELVETICA, 9.5f, Font.ITALIC, new Color(80, 80, 80))));
-                    }
-
-                    drugCell.addElement(drugPara);
-                    drugsTable.addCell(drugCell);
+                    drugsTable.addCell(tableBodyCell(drugName, rowBg));
+                    drugsTable.addCell(tableBodyCell(posology(item), new Font(Font.HELVETICA, 9.5f, Font.NORMAL, new Color(60, 60, 60)), rowBg));
+                    drugsTable.addCell(tableBodyCell(durationAndQuantity(item), new Font(Font.HELVETICA, 9.5f, Font.NORMAL, new Color(60, 60, 60)), rowBg));
+                    drugsTable.addCell(tableBodyCell(valueOrDash(item.instructions()), new Font(Font.HELVETICA, 9.5f, Font.ITALIC, new Color(80, 80, 80)), rowBg));
                 }
             }
 
-            rxOuterCell.addElement(drugsTable);
+            document.add(drugsTable);
 
-            // 5. Signature area at the bottom-right of the Rx box
+            // 5. Signature area
             PdfPTable signatureTable = new PdfPTable(2);
             signatureTable.setWidthPercentage(100);
             signatureTable.setWidths(new float[]{60, 40});
@@ -301,11 +281,8 @@ class PrescriptionPdfService {
             
             rightSig.addElement(sigPara);
             signatureTable.addCell(rightSig);
-            
-            rxOuterCell.addElement(signatureTable);
-            rxOuterTable.addCell(rxOuterCell);
-            
-            document.add(rxOuterTable);
+
+            document.add(signatureTable);
 
             document.close();
         } catch (Exception e) {
@@ -313,6 +290,57 @@ class PrescriptionPdfService {
         }
 
         return out.toByteArray();
+    }
+
+    private static PdfPCell tableHeaderCell(String value) {
+        PdfPCell cell = new PdfPCell(new Phrase(value, new Font(Font.HELVETICA, 10, Font.BOLD, Color.WHITE)));
+        cell.setBackgroundColor(new Color(11, 59, 96));
+        cell.setBorderColor(new Color(11, 59, 96));
+        cell.setPadding(7);
+        return cell;
+    }
+
+    private static PdfPCell tableBodyCell(String value, Font font, Color backgroundColor) {
+        return tableBodyCell(new Phrase(valueOrDash(value), font), backgroundColor);
+    }
+
+    private static PdfPCell tableBodyCell(Phrase phrase, Color backgroundColor) {
+        PdfPCell cell = new PdfPCell(phrase);
+        cell.setPadding(7);
+        cell.setLeading(0, 1.15f);
+        cell.setBorderColor(new Color(225, 230, 235));
+        cell.setBackgroundColor(backgroundColor);
+        return cell;
+    }
+
+    private static String posology(PrescriptionItemEntity item) {
+        StringBuilder value = new StringBuilder();
+        appendLine(value, "Dosage", item.dosage());
+        appendLine(value, "Fréquence", item.frequency());
+        return value.isEmpty() ? "-" : value.toString();
+    }
+
+    private static String durationAndQuantity(PrescriptionItemEntity item) {
+        StringBuilder value = new StringBuilder();
+        appendLine(value, "Durée", item.duration());
+        if (item.quantity() != null) {
+            appendLine(value, "Qté", item.quantity() + " boîte(s)");
+        }
+        return value.isEmpty() ? "-" : value.toString();
+    }
+
+    private static void appendLine(StringBuilder target, String label, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        if (!target.isEmpty()) {
+            target.append('\n');
+        }
+        target.append(label).append(" : ").append(value.trim());
+    }
+
+    private static String valueOrDash(String value) {
+        return value == null || value.isBlank() ? "-" : value.trim();
     }
 
     // --- Private Static Events & Helpers for Drawing ---

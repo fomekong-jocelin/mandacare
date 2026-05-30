@@ -866,114 +866,135 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
   }
 
   Widget _buildLabResultsSection(PatientLabResultSummary labResult) {
-    final badgeColor = labResult.isNormal ? AppColors.medicalGreen : AppColors.error;
-    final badgeText = labResult.isNormal ? 'Résultats normaux' : 'Résultats anormaux / Pathologie';
+    final badgeColor = labResult.isNormal
+        ? AppColors.medicalGreen
+        : AppColors.error;
+    final badgeText = labResult.isNormal ? 'Normal' : 'À interpréter';
+    final examTitle = _labExamTitle(labResult.examType);
+    final examDetails = _labExamDetails(labResult.examType);
+    final analysisBlocks = _labAnalysisBlocks(labResult.results);
+    final observations = labResult.observations?.trim();
 
     return FormSection(
-      title: 'Résultats d\'examens de laboratoire',
+      title: 'Résultats laboratoire',
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.lightBackground.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.medicalGreen.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.science_rounded,
+                color: AppColors.medicalGreen,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Type d\'examen',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.deepHealthBlue,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          labResult.examType,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    examTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      height: 1.16,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: badgeColor.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: badgeColor.withValues(alpha: 0.20)),
-                    ),
-                    child: Text(
-                      badgeText,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.bold,
-                        color: badgeColor,
+                  if (examDetails != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      examDetails,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.medicalGreen,
+                        height: 1.18,
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
-              const Divider(height: 20),
-              const Text(
-                'Analyses / Résultats',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.deepHealthBlue,
-                ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _LabStatusBadge(
+            label: badgeText,
+            color: badgeColor,
+            icon: labResult.isNormal
+                ? Icons.check_circle_rounded
+                : Icons.error_rounded,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _LabMetaLine(
+          icon: Icons.event_available_rounded,
+          label: 'Prélevé le',
+          value: _formatDate(labResult.sampleDate),
+        ),
+        if (labResult.dossierNumber != null &&
+            labResult.dossierNumber!.trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _LabMetaLine(
+            icon: Icons.folder_open_rounded,
+            label: 'Dossier LAB',
+            value: labResult.dossierNumber!.trim(),
+          ),
+        ],
+        const Divider(height: 24),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            collapsedIconColor: AppColors.deepHealthBlue,
+            iconColor: AppColors.deepHealthBlue,
+            title: const Text(
+              'Analyses saisies',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.deepHealthBlue,
               ),
-              const SizedBox(height: 4),
-              Text(
-                labResult.results,
-                style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+            ),
+            subtitle: Text(
+              analysisBlocks.length <= 1
+                  ? '${analysisBlocks.length} résultat'
+                  : '${analysisBlocks.length} résultats',
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: AppColors.textSecondary,
               ),
-              if (labResult.observations != null && labResult.observations!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text(
-                  'Observations du laboratoire',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.deepHealthBlue,
+            ),
+            children: [
+              if (analysisBlocks.isEmpty)
+                _LabAnalysisItem(
+                  block: _LabAnalysisBlock(
+                    title: 'Résultats',
+                    lines: [labResult.results.trim()],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  labResult.observations!,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-                ),
+                )
+              else
+                for (final block in analysisBlocks)
+                  _LabAnalysisItem(block: block),
+              if (observations != null && observations.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                _LabObservationBlock(value: observations),
               ],
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Prélèvement : ${_formatDate(labResult.sampleDate)}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                  ),
-                  Text(
-                    'N° Dossier LAB : ${labResult.dossierNumber ?? "—"}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -981,8 +1002,222 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
     );
   }
 
+  String _labExamTitle(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return 'Bilan laboratoire';
+    }
+    final separatorIndex = trimmed.indexOf(' - ');
+    if (separatorIndex == -1) {
+      return trimmed;
+    }
+    return trimmed.substring(0, separatorIndex).trim();
+  }
+
+  String? _labExamDetails(String value) {
+    final trimmed = value.trim();
+    final separatorIndex = trimmed.indexOf(' - ');
+    if (separatorIndex == -1 || separatorIndex + 3 >= trimmed.length) {
+      return null;
+    }
+    return trimmed.substring(separatorIndex + 3).trim();
+  }
+
+  List<_LabAnalysisBlock> _labAnalysisBlocks(String value) {
+    return value
+        .trim()
+        .split(RegExp(r'\n\s*\n'))
+        .map((block) {
+          final lines = block
+              .split('\n')
+              .map((line) => line.trim())
+              .where((line) => line.isNotEmpty)
+              .toList(growable: false);
+          if (lines.isEmpty) {
+            return null;
+          }
+          return _LabAnalysisBlock(
+            title: lines.first,
+            lines: lines.skip(1).toList(growable: false),
+          );
+        })
+        .whereType<_LabAnalysisBlock>()
+        .toList(growable: false);
+  }
+
   String _formatDate(DateTime dt) {
     return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+  }
+}
+
+class _LabAnalysisBlock {
+  const _LabAnalysisBlock({required this.title, required this.lines});
+
+  final String title;
+  final List<String> lines;
+}
+
+class _LabStatusBadge extends StatelessWidget {
+  const _LabStatusBadge({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
+
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LabMetaLine extends StatelessWidget {
+  const _LabMetaLine({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppColors.textSecondary, size: 16),
+        const SizedBox(width: 7),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                height: 1.22,
+              ),
+              children: [
+                TextSpan(
+                  text: '$label : ',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                TextSpan(text: value),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LabAnalysisItem extends StatelessWidget {
+  const _LabAnalysisItem({required this.block});
+
+  final _LabAnalysisBlock block;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              block.title,
+              textAlign: TextAlign.left,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w900,
+                color: AppColors.deepHealthBlue,
+                height: 1.18,
+              ),
+            ),
+            if (block.lines.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              for (final line in block.lines)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    line,
+                    textAlign: TextAlign.left,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textPrimary,
+                      height: 1.2,
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LabObservationBlock extends StatelessWidget {
+  const _LabObservationBlock({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Observations du laboratoire',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: AppColors.deepHealthBlue,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            textAlign: TextAlign.left,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.textPrimary,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

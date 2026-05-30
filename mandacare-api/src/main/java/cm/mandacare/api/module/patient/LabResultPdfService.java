@@ -20,6 +20,9 @@ import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -45,7 +48,7 @@ class LabResultPdfService {
             document.add(headerTable());
             document.add(titleTable(labResult));
             document.add(patientCard(labResult));
-            document.add(resultsCard(labResult));
+            addResultsSection(document, labResult);
             document.add(signatureTable());
 
             document.close();
@@ -184,49 +187,166 @@ class LabResultPdfService {
         return paragraph;
     }
 
-    private PdfPTable resultsCard(LabResultEntity labResult) throws Exception {
-        PdfPTable outer = new PdfPTable(1);
-        outer.setWidthPercentage(100);
-        outer.setSpacingAfter(24);
-
-        PdfPCell cell = new PdfPCell();
-        cell.setPadding(18);
-        cell.setBorder(Rectangle.NO_BORDER);
-        cell.setCellEvent(new RoundedBorderCellEvent());
-
-        Font sectionFont = new Font(Font.HELVETICA, 12, Font.BOLD, DEEP_HEALTH_BLUE);
-        Font valueFont = new Font(Font.HELVETICA, 10.5f, Font.NORMAL, TEXT);
-        Font statusFont = labResult.normalResults()
-                ? new Font(Font.HELVETICA, 10, Font.BOLD, MEDICAL_GREEN)
-                : new Font(Font.HELVETICA, 10, Font.BOLD, new Color(180, 55, 55));
-
-        cell.addElement(new Paragraph("Type d'examen", sectionFont));
-        cell.addElement(spacedParagraph(compactExamType(labResult.examType()), valueFont, 8));
-
-        cell.addElement(new Paragraph("Statut", sectionFont));
-        cell.addElement(spacedParagraph(
-                labResult.normalResults() ? "Résultats normaux" : "Résultats à interpréter",
-                statusFont,
-                8
-        ));
-
-        cell.addElement(new Paragraph("Analyses / Résultats saisis", sectionFont));
-        cell.addElement(spacedParagraph(valueOrDash(labResult.results()), valueFont, 12));
+    private void addResultsSection(Document document, LabResultEntity labResult) throws Exception {
+        document.add(sectionHeading("Synthèse des résultats"));
+        document.add(resultSummaryTable(labResult));
+        document.add(sectionHeading("Analyses / Résultats saisis"));
+        document.add(analysisTable(parseAnalysisRows(labResult.results())));
 
         if (labResult.observations() != null && !labResult.observations().isBlank()) {
-            cell.addElement(new Paragraph("Observations du laboratoire", sectionFont));
-            cell.addElement(spacedParagraph(labResult.observations(), valueFont, 0));
+            document.add(sectionHeading("Observations du laboratoire"));
+            document.add(observationTable(labResult.observations()));
         }
-
-        outer.addCell(cell);
-        return outer;
     }
 
-    private Paragraph spacedParagraph(String text, Font font, float spacingAfter) {
-        Paragraph paragraph = new Paragraph(text, font);
+    private Paragraph sectionHeading(String value) {
+        Paragraph heading = new Paragraph(value, new Font(Font.HELVETICA, 12, Font.BOLD, DEEP_HEALTH_BLUE));
+        heading.setSpacingBefore(6);
+        heading.setSpacingAfter(6);
+        return heading;
+    }
+
+    private PdfPTable resultSummaryTable(LabResultEntity labResult) throws Exception {
+        PdfPTable table = new PdfPTable(2);
+        table.setWidthPercentage(100);
+        table.setWidths(new float[]{68, 32});
+        table.setSpacingAfter(12);
+
+        table.addCell(summaryCell("Type d'examen", compactExamType(labResult.examType()), TEXT));
+        table.addCell(summaryCell(
+                "Statut",
+                labResult.normalResults() ? "Résultats normaux" : "Résultats à interpréter",
+                labResult.normalResults() ? MEDICAL_GREEN : new Color(180, 55, 55)
+        ));
+        return table;
+    }
+
+    private PdfPCell summaryCell(String label, String value, Color valueColor) {
+        Font labelFont = new Font(Font.HELVETICA, 10, Font.BOLD, DEEP_HEALTH_BLUE);
+        Font valueFont = new Font(Font.HELVETICA, 10.5f, Font.BOLD, valueColor);
+        Paragraph paragraph = new Paragraph();
         paragraph.setLeading(15f);
-        paragraph.setSpacingAfter(spacingAfter);
-        return paragraph;
+        paragraph.add(new Chunk(label + "\n", labelFont));
+        paragraph.add(new Chunk(valueOrDash(value), valueFont));
+
+        PdfPCell cell = new PdfPCell(paragraph);
+        cell.setPadding(10);
+        cell.setBorderColor(new Color(225, 230, 235));
+        cell.setBackgroundColor(new Color(248, 250, 252));
+        return cell;
+    }
+
+    private PdfPTable analysisTable(List<AnalysisResultLine> lines) throws Exception {
+        PdfPTable table = new PdfPTable(3);
+        table.setWidthPercentage(100);
+        table.setWidths(new float[]{32, 24, 44});
+        table.setHeaderRows(1);
+        table.setSplitRows(true);
+        table.setSplitLate(false);
+        table.setSpacingAfter(12);
+
+        table.addCell(headerCell("Analyse"));
+        table.addCell(headerCell("Statut"));
+        table.addCell(headerCell("Résultat"));
+
+        for (AnalysisResultLine line : lines) {
+            table.addCell(bodyCell(line.name(), new Font(Font.HELVETICA, 10, Font.BOLD, DEEP_HEALTH_BLUE)));
+            table.addCell(bodyCell(line.status(), new Font(Font.HELVETICA, 9.5f, Font.BOLD, statusColor(line.status()))));
+            table.addCell(bodyCell(line.result(), new Font(Font.HELVETICA, 9.5f, Font.NORMAL, TEXT)));
+        }
+
+        return table;
+    }
+
+    private PdfPCell headerCell(String value) {
+        PdfPCell cell = new PdfPCell(new Phrase(value, new Font(Font.HELVETICA, 10, Font.BOLD, Color.WHITE)));
+        cell.setPadding(7);
+        cell.setBorderColor(DEEP_HEALTH_BLUE);
+        cell.setBackgroundColor(DEEP_HEALTH_BLUE);
+        return cell;
+    }
+
+    private PdfPCell bodyCell(String value, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(valueOrDash(value), font));
+        cell.setPadding(7);
+        cell.setLeading(0, 1.15f);
+        cell.setBorderColor(new Color(225, 230, 235));
+        cell.setBackgroundColor(Color.WHITE);
+        return cell;
+    }
+
+    private PdfPTable observationTable(String observations) {
+        PdfPTable table = new PdfPTable(1);
+        table.setWidthPercentage(100);
+        table.setSpacingAfter(18);
+
+        PdfPCell cell = bodyCell(observations, new Font(Font.HELVETICA, 10, Font.NORMAL, TEXT));
+        cell.setBackgroundColor(new Color(248, 250, 252));
+        table.addCell(cell);
+        return table;
+    }
+
+    private List<AnalysisResultLine> parseAnalysisRows(String rawResults) {
+        String normalized = valueOrDash(rawResults).replace("\r\n", "\n").trim();
+        if (normalized.equals("-")) {
+            return List.of(new AnalysisResultLine("Résultats", "-", "-"));
+        }
+
+        List<AnalysisResultLine> rows = new ArrayList<>();
+        for (String block : normalized.split("\\n\\s*\\n")) {
+            List<String> lines = block.lines()
+                    .map(String::trim)
+                    .filter(line -> !line.isBlank())
+                    .toList();
+            if (lines.isEmpty()) {
+                continue;
+            }
+            if (lines.size() == 1) {
+                rows.add(new AnalysisResultLine(lines.getFirst(), "-", "-"));
+                continue;
+            }
+
+            String status = "-";
+            List<String> resultLines = new ArrayList<>();
+            for (String line : lines.subList(1, lines.size())) {
+                String lower = line.toLowerCase(Locale.ROOT);
+                if (lower.startsWith("statut")) {
+                    status = stripValuePrefix(line);
+                } else if (lower.startsWith("résultat") || lower.startsWith("resultat")) {
+                    resultLines.add(stripValuePrefix(line));
+                } else {
+                    resultLines.add(line);
+                }
+            }
+            rows.add(new AnalysisResultLine(
+                    lines.getFirst(),
+                    valueOrDash(status),
+                    resultLines.isEmpty() ? "-" : String.join("\n", resultLines)
+            ));
+        }
+
+        return rows.isEmpty() ? List.of(new AnalysisResultLine("Résultats", "-", normalized)) : rows;
+    }
+
+    private String stripValuePrefix(String line) {
+        int separator = line.indexOf(':');
+        if (separator == -1 || separator == line.length() - 1) {
+            return valueOrDash(line);
+        }
+        return valueOrDash(line.substring(separator + 1));
+    }
+
+    private Color statusColor(String status) {
+        String normalized = valueOrDash(status).toLowerCase(Locale.ROOT);
+        if (normalized.contains("anormal")
+                || normalized.contains("interpr")
+                || normalized.contains("patholog")) {
+            return new Color(180, 55, 55);
+        }
+        if (normalized.contains("normal")) {
+            return MEDICAL_GREEN;
+        }
+        return TEXT;
     }
 
     private PdfPTable signatureTable() throws Exception {
@@ -262,6 +382,9 @@ class LabResultPdfService {
 
     private static String valueOrDash(String value) {
         return value == null || value.isBlank() ? "-" : value.trim();
+    }
+
+    private record AnalysisResultLine(String name, String status, String result) {
     }
 
     private static class FooterEvent extends PdfPageEventHelper {
