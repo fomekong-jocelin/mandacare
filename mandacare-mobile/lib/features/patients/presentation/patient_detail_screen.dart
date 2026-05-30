@@ -9,6 +9,7 @@ import '../../../shared/presentation/widgets/action_tile.dart';
 import '../../../shared/presentation/widgets/metric_strip.dart';
 import '../../../shared/presentation/widgets/page_header.dart';
 import '../../auth/domain/auth_session.dart';
+import '../../cashdesk/domain/invoice_preview.dart';
 import '../../cashdesk/presentation/cashdesk_payment_sheet.dart';
 import '../data/patient_gateway.dart';
 import '../domain/patient_summary.dart';
@@ -37,8 +38,10 @@ class PatientDetailScreen extends StatefulWidget {
 
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
   List<PatientTimelineItem> _timeline = [];
+  bool _changed = false;
   bool _loading = true;
   String? _error;
+  InvoicePreview? _invoicePreview;
 
   @override
   void initState() {
@@ -66,11 +69,23 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         session: widget.session,
         patientId: patientId,
       );
+
+      InvoicePreview? invoicePreview;
+      if (items.isNotEmpty && items.first.status == PatientStatus.cashDesk) {
+        try {
+          invoicePreview = await widget.patientGateway.getInvoicePreview(
+            session: widget.session,
+            visitId: items.first.visitId,
+          );
+        } catch (_) {}
+      }
+
       if (!mounted) {
         return;
       }
       setState(() {
         _timeline = items;
+        _invoicePreview = invoicePreview;
         _loading = false;
       });
     } catch (e) {
@@ -411,6 +426,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       return;
     }
 
+    final navigator = Navigator.of(context);
+
     final payload = await showCashDeskPaymentSheet(
       context,
       patientName: widget.patient.fullName,
@@ -432,6 +449,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         payload: payload,
       );
       if (mounted) {
+        setState(() {
+          _changed = true;
+        });
         await _loadTimeline();
       }
 
@@ -493,6 +513,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           );
         },
       );
+
+      navigator.pop(_changed);
     } catch (_) {
       _showMessage('Impossible de valider le passage en caisse.');
     }
@@ -538,6 +560,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         status: PatientStatus.inConsultation,
       );
       if (mounted) {
+        setState(() {
+          _changed = true;
+        });
         await _loadTimeline();
         _showMessage('Patient replacé en consultation.');
       }
@@ -562,6 +587,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       ),
     );
     if (saved == true && mounted) {
+      setState(() {
+        _changed = true;
+      });
       _loadTimeline();
     }
   }
@@ -602,6 +630,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         ),
       );
       if (completed == true && mounted) {
+        setState(() {
+          _changed = true;
+        });
         _loadTimeline();
       }
     } catch (_) {
@@ -628,19 +659,28 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       ),
     );
     if (completed == true && mounted) {
+      setState(() {
+        _changed = true;
+      });
       await _loadTimeline();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            PageHeader(
-              title: widget.patient.fullName,
-              subtitle: 'Profil patient',
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.of(context).pop(_changed);
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              PageHeader(
+                title: widget.patient.fullName,
+                subtitle: 'Profil patient',
               trailing: IconButton.filled(
                 onPressed: () {},
                 tooltip: 'Modifier',
@@ -771,8 +811,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _openVisitForm() async {
     final created = await Navigator.of(context).push<bool>(
@@ -787,6 +828,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     if (created == true && mounted) {
       // Stay on the detail screen and reload the timeline
       // instead of popping back to the patient list.
+      setState(() {
+        _changed = true;
+      });
       _loadTimeline();
     }
   }
@@ -848,10 +892,13 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       final nextLabel = _statusAfterCashDesk == PatientStatus.lab
           ? 'Labo'
           : 'Sortie';
+      final amountSuffix = _invoicePreview != null
+          ? ' - ${_invoicePreview!.netAmount.toInt()} Frs'
+          : '';
       actions.add(
         ActionTile(
           icon: Icons.payments_rounded,
-          title: 'Valider le passage en caisse',
+          title: 'Valider le passage en caisse$amountSuffix',
           subtitle: 'Encaissement puis orientation vers $nextLabel (Étape 4)',
           onTap: _completeCashDeskStep,
         ),

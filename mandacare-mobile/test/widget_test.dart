@@ -358,7 +358,7 @@ void main() {
     await tester.tap(find.text('Mamadou Sarr').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Valider le passage en caisse'), findsOneWidget);
+    expect(find.textContaining('Valider le passage en caisse'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('return-to-consultation-action')),
       findsOneWidget,

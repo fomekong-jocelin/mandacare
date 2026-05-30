@@ -9,6 +9,7 @@ import '../../consultations/domain/consultation_decision.dart';
 import '../../patients/data/patient_gateway.dart';
 import '../../patients/domain/patient_summary.dart';
 import '../../patients/presentation/patient_detail_screen.dart';
+import '../domain/invoice_preview.dart';
 import 'cashdesk_payment_sheet.dart';
 
 class CashDeskScreen extends StatefulWidget {
@@ -98,11 +99,23 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
         session: widget.session,
         patientId: patientId,
       );
+      double? netAmount;
+      final visitId = patient.latestVisitId;
+      if (visitId != null) {
+        try {
+          final InvoicePreview preview = await widget.patientGateway.getInvoicePreview(
+            session: widget.session,
+            visitId: visitId,
+          );
+          netAmount = preview.netAmount;
+        } catch (_) {}
+      }
       return _CashDeskPatient(
         patient: patient,
         decision: timeline.isEmpty
             ? null
             : timeline.first.consultation?.decision,
+        netAmount: netAmount,
       );
     } catch (_) {
       return _CashDeskPatient(patient: patient);
@@ -321,10 +334,15 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
 }
 
 class _CashDeskPatient {
-  const _CashDeskPatient({required this.patient, this.decision});
+  const _CashDeskPatient({
+    required this.patient,
+    this.decision,
+    this.netAmount,
+  });
 
   final PatientSummary patient;
   final ConsultationDecision? decision;
+  final double? netAmount;
 
   PatientStatus get targetStatus {
     return decision == ConsultationDecision.sendToLab
@@ -510,6 +528,7 @@ class _CashDeskPatientTile extends StatelessWidget {
                 patient: patient,
                 targetColor: targetColor,
                 targetStatus: targetStatus,
+                netAmount: item.netAmount,
               );
               final actions = _CashDeskPatientActions(
                 completing: completing,
@@ -546,11 +565,13 @@ class _CashDeskPatientDetails extends StatelessWidget {
     required this.patient,
     required this.targetStatus,
     required this.targetColor,
+    this.netAmount,
   });
 
   final PatientSummary patient;
   final PatientStatus targetStatus;
   final Color targetColor;
+  final double? netAmount;
 
   @override
   Widget build(BuildContext context) {
@@ -591,6 +612,17 @@ class _CashDeskPatientDetails extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (netAmount != null) ...[
+                    Text(
+                      '${netAmount!.toInt()} Frs',
+                      style: const TextStyle(
+                        color: AppColors.premiumGold,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   _CashDeskRouteBadge(
                     label: _targetLabel(targetStatus),
                     color: targetColor,
