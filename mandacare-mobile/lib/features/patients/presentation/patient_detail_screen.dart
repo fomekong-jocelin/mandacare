@@ -427,137 +427,141 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               PageHeader(
                 title: widget.patient.fullName,
                 subtitle: 'Profil patient',
-              trailing: IconButton.filled(
-                onPressed: () {},
-                tooltip: 'Modifier',
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.medicalGreen,
-                  foregroundColor: Colors.white,
+                trailing: IconButton.filled(
+                  onPressed: () {},
+                  tooltip: 'Modifier',
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.medicalGreen,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.edit_rounded),
                 ),
-                icon: const Icon(Icons.edit_rounded),
               ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                children: [
-                  _PatientProfileCard(
-                    patient: widget.patient,
-                    status: _currentStatus,
-                  ),
-                  const SizedBox(height: 14),
-                  _PatientWorkflowStepper(
-                    status: _currentStatus,
-                    hasVitals:
-                        _timeline.isNotEmpty && _timeline.first.vitals != null,
-                    onStepTapped: _onStepTapped,
-                  ),
-                  const SizedBox(height: 14),
-                  MetricStrip(
-                    items: [
-                      MetricStripItem(
-                        value: _timeline.length.toString(),
-                        label: _timeline.length > 1 ? 'visites' : 'visite',
-                        color: AppColors.deepHealthBlue,
-                      ),
-                      MetricStripItem(
-                        value: _timeline
-                            .where((item) => item.consultation != null)
-                            .length
-                            .toString(),
-                        label: 'consult.',
-                        color: AppColors.medicalGreen,
-                      ),
-                      MetricStripItem(
-                        value: widget.patient.priority == PatientPriority.urgent
-                            ? '1'
-                            : '0',
-                        label: 'alerte',
-                        color: AppColors.warning,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  _SectionTitle(title: 'Actions patient'),
-                  const SizedBox(height: 10),
-                  ..._buildPatientActions(),
-                  const SizedBox(height: 10),
-                  (() {
-                    final latestConsult = _latestConsultationWithPrescription;
-                    return ActionTile(
-                      icon: Icons.receipt_long_rounded,
-                      title: 'Dernière Ordonnance',
-                      subtitle: latestConsult != null
-                          ? 'Imprimer / Voir l\'ordonnance'
-                          : 'Aucune ordonnance rédigée',
-                      onTap: latestConsult != null
-                          ? () => _showVisitDetailSheet(context, latestConsult)
-                          : null,
-                    );
-                  })(),
-                  const SizedBox(height: 18),
-                  _SectionTitle(title: 'Résumé clinique'),
-                  const SizedBox(height: 10),
-                  _ClinicalSummary(patient: widget.patient),
-                  const SizedBox(height: 18),
-                  _SectionTitle(title: 'Historique'),
-                  const SizedBox(height: 10),
-                  if (_loading)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  else if (_error != null)
-                    Center(
-                      child: Column(
-                        children: [
-                          Text(
-                            _error!,
-                            style: const TextStyle(color: AppColors.error),
-                          ),
-                          const SizedBox(height: 8),
-                          TextButton.icon(
-                            onPressed: _loadTimeline,
-                            icon: const Icon(Icons.refresh_rounded),
-                            label: const Text('Réessayer'),
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (_timeline.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: 18,
-                        horizontal: 4,
-                      ),
-                      child: Text(
-                        'Aucun historique de visite disponible.',
-                        style: TextStyle(fontStyle: FontStyle.italic),
-                      ),
-                    )
-                  else ...[
-                    for (final item in _timeline) ...[
-                      _TimelineItem(
-                        icon: _timelineIcon(item),
-                        title: _timelineTitle(item),
-                        subtitle: _timelineSubtitle(item),
-                        date: _formatDate(item.arrivalAt),
-                        onTap: () => _showVisitDetailSheet(context, item),
-                      ),
-                      const SizedBox(height: 10),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                  children: [
+                    _PatientProfileCard(
+                      patient: widget.patient,
+                      status: _currentStatus,
+                    ),
+                    const SizedBox(height: 14),
+                    _PatientWorkflowStepper(
+                      status: _currentStatus,
+                      hasVitals:
+                          _timeline.isNotEmpty &&
+                          _timeline.first.vitals != null,
+                      onStepTapped: _onStepTapped,
+                    ),
+                    const SizedBox(height: 14),
+                    MetricStrip(
+                      items: [
+                        MetricStripItem(
+                          value: _timeline.length.toString(),
+                          label: _timeline.length > 1 ? 'visites' : 'visite',
+                          color: AppColors.deepHealthBlue,
+                        ),
+                        MetricStripItem(
+                          value: _timeline
+                              .where((item) => item.consultation != null)
+                              .length
+                              .toString(),
+                          label: 'consult.',
+                          color: AppColors.medicalGreen,
+                        ),
+                        MetricStripItem(
+                          value:
+                              widget.patient.priority == PatientPriority.urgent
+                              ? '1'
+                              : '0',
+                          label: 'alerte',
+                          color: AppColors.warning,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _SectionTitle(title: 'Actions patient'),
+                    const SizedBox(height: 10),
+                    ..._buildPatientActions(),
+                    const SizedBox(height: 10),
+                    (() {
+                      final latestConsult = _latestConsultationWithPrescription;
+                      return ActionTile(
+                        icon: Icons.receipt_long_rounded,
+                        title: 'Dernière Ordonnance',
+                        subtitle: latestConsult != null
+                            ? 'Imprimer / Voir l\'ordonnance'
+                            : 'Aucune ordonnance rédigée',
+                        onTap: latestConsult != null
+                            ? () =>
+                                  _showVisitDetailSheet(context, latestConsult)
+                            : null,
+                      );
+                    })(),
+                    const SizedBox(height: 18),
+                    _SectionTitle(title: 'Résumé clinique'),
+                    const SizedBox(height: 10),
+                    _ClinicalSummary(patient: widget.patient),
+                    const SizedBox(height: 18),
+                    _SectionTitle(title: 'Historique'),
+                    const SizedBox(height: 10),
+                    if (_loading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    else if (_error != null)
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              _error!,
+                              style: const TextStyle(color: AppColors.error),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: _loadTimeline,
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Réessayer'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (_timeline.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 18,
+                          horizontal: 4,
+                        ),
+                        child: Text(
+                          'Aucun historique de visite disponible.',
+                          style: TextStyle(fontStyle: FontStyle.italic),
+                        ),
+                      )
+                    else ...[
+                      for (final item in _timeline) ...[
+                        _TimelineItem(
+                          icon: _timelineIcon(item),
+                          title: _timelineTitle(item),
+                          subtitle: _timelineSubtitle(item),
+                          date: _formatDate(item.arrivalAt),
+                          documents: _timelineDocuments(item),
+                          onTap: () => _showVisitDetailSheet(context, item),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                     ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Future<void> _openVisitForm() async {
     final created = await Navigator.of(context).push<bool>(
@@ -759,23 +763,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     final consultation = item.consultation;
     final vitals = item.vitals;
 
-    final List<String> indicators = [];
-    if (consultation != null && consultation.hasPrescription) {
-      indicators.add('📎 Ordonnance');
-    }
-    if (item.labResult != null) {
-      indicators.add('🔬 Labo');
-    }
-    if (item.status == PatientStatus.released ||
-        item.status == PatientStatus.lab ||
-        item.status == PatientStatus.cashDesk) {
-      indicators.add('🧾 Reçu');
-    }
-
-    final indicatorStr = indicators.isNotEmpty ? ' (${indicators.join(' · ')})' : '';
-
     if (consultation != null) {
-      return 'Diagnostic : ${consultation.diagnosis}$indicatorStr';
+      final diagnosis = consultation.diagnosis.trim();
+      return diagnosis.isEmpty
+          ? 'Diagnostic non renseigné'
+          : 'Diagnostic : $diagnosis';
     }
     if (vitals != null) {
       final temp = vitals.temperature != null
@@ -785,9 +777,38 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           vitals.systolicPressure != null && vitals.diastolicPressure != null
           ? '${vitals.systolicPressure}/${vitals.diastolicPressure} mmHg'
           : '--';
-      return 'T°: $temp · PA: $bp$indicatorStr';
+      return 'T°: $temp · PA: $bp';
     }
-    return 'Service : ${item.targetService} · Statut : ${item.status.label}$indicatorStr';
+    return 'Service : ${item.targetService} · Statut : ${item.status.label}';
+  }
+
+  List<_TimelineDocument> _timelineDocuments(PatientTimelineItem item) {
+    return [
+      if (item.consultation?.hasPrescription == true)
+        const _TimelineDocument(
+          label: 'Ordonnance',
+          icon: Icons.description_rounded,
+          color: AppColors.medicalGreen,
+        ),
+      if (item.labResult != null)
+        const _TimelineDocument(
+          label: 'Résultat labo',
+          icon: Icons.science_rounded,
+          color: AppColors.info,
+        ),
+      if (_hasInvoiceDocument(item))
+        const _TimelineDocument(
+          label: 'Reçu',
+          icon: Icons.receipt_long_rounded,
+          color: AppColors.warning,
+        ),
+    ];
+  }
+
+  bool _hasInvoiceDocument(PatientTimelineItem item) {
+    return item.status == PatientStatus.released ||
+        item.status == PatientStatus.lab ||
+        item.status == PatientStatus.cashDesk;
   }
 
   String _formatDate(DateTime dt) {
@@ -1134,6 +1155,7 @@ class _TimelineItem extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.date,
+    required this.documents,
     this.onTap,
   });
 
@@ -1141,20 +1163,195 @@ class _TimelineItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final String date;
+  final List<_TimelineDocument> documents;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ActionTile(
-      icon: icon,
-      title: title,
-      subtitle: subtitle,
-      onTap: onTap,
-      trailing: Text(
-        date,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w600,
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.40)),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.deepHealthBlue.withValues(alpha: 0.035),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _TimelineLeadingIcon(icon: icon),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final titleWidget = Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                height: 1.12,
+                              ),
+                        );
+                        final dateWidget = Text(
+                          date,
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          softWrap: false,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                                height: 1.12,
+                              ),
+                        );
+
+                        if (constraints.maxWidth < 270) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              titleWidget,
+                              const SizedBox(height: 3),
+                              dateWidget,
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: titleWidget),
+                            const SizedBox(width: 8),
+                            dateWidget,
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        height: 1.18,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    if (documents.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final document in documents)
+                            _TimelineDocumentChip(
+                              document: document,
+                              onTap: onTap,
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TimelineLeadingIcon extends StatelessWidget {
+  const _TimelineLeadingIcon({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: AppColors.medicalGreen.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, color: AppColors.medicalGreen, size: 20),
+    );
+  }
+}
+
+class _TimelineDocument {
+  const _TimelineDocument({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+}
+
+class _TimelineDocumentChip extends StatelessWidget {
+  const _TimelineDocumentChip({required this.document, this.onTap});
+
+  final _TimelineDocument document;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: onTap != null,
+      label: 'Pièce jointe ${document.label}',
+      child: Material(
+        color: document.color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 28),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: document.color.withValues(alpha: 0.22)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(document.icon, size: 15, color: document.color),
+                const SizedBox(width: 5),
+                Text(
+                  document.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: document.color,
+                    fontWeight: FontWeight.w700,
+                    height: 1.05,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1209,7 +1406,8 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
     if (widget.item.consultation?.hasPrescription == true) {
       _loadPrescription();
     }
-    final hasInvoice = widget.item.status == PatientStatus.released ||
+    final hasInvoice =
+        widget.item.status == PatientStatus.released ||
         widget.item.status == PatientStatus.lab ||
         widget.item.status == PatientStatus.cashDesk;
     if (hasInvoice) {
@@ -1267,7 +1465,8 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
         : "http://localhost:8080/api/v1";
 
     var fullUrl = relativeUrl;
-    if (!relativeUrl.startsWith('http://') && !relativeUrl.startsWith('https://')) {
+    if (!relativeUrl.startsWith('http://') &&
+        !relativeUrl.startsWith('https://')) {
       if (relativeUrl.startsWith('/api/v1/')) {
         if (baseUrl.endsWith('/api/v1')) {
           fullUrl = '$baseUrl${relativeUrl.substring(7)}';
@@ -1284,7 +1483,10 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
 
     final url = Uri.parse(fullUrl);
     try {
-      final success = await launchUrl(url, mode: LaunchMode.externalApplication);
+      final success = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
       if (!success) {
         _showMessage('Impossible d\'ouvrir le PDF.');
       }
@@ -1304,7 +1506,8 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
     final consultation = item.consultation;
     final labResult = item.labResult;
 
-    final hasInvoice = item.status == PatientStatus.released ||
+    final hasInvoice =
+        item.status == PatientStatus.released ||
         item.status == PatientStatus.lab ||
         item.status == PatientStatus.cashDesk;
 
@@ -1365,25 +1568,37 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
               padding: const EdgeInsets.all(16),
               children: [
                 if (vitals != null) ...[
-                  _buildSectionHeader('Constantes médicales', Icons.monitor_heart_rounded),
+                  _buildSectionHeader(
+                    'Constantes médicales',
+                    Icons.monitor_heart_rounded,
+                  ),
                   const SizedBox(height: 8),
                   _buildVitalsCard(vitals),
                   const SizedBox(height: 18),
                 ],
                 if (consultation != null) ...[
-                  _buildSectionHeader('Consultation médicale', Icons.assignment_rounded),
+                  _buildSectionHeader(
+                    'Consultation médicale',
+                    Icons.assignment_rounded,
+                  ),
                   const SizedBox(height: 8),
                   _buildConsultationCard(consultation),
                   const SizedBox(height: 18),
                 ],
                 if (labResult != null) ...[
-                  _buildSectionHeader('Résultats de laboratoire', Icons.science_rounded),
+                  _buildSectionHeader(
+                    'Résultats de laboratoire',
+                    Icons.science_rounded,
+                  ),
                   const SizedBox(height: 8),
                   _buildLabResultsCard(labResult),
                   const SizedBox(height: 18),
                 ],
                 if (hasInvoice) ...[
-                  _buildSectionHeader('Facturation & Encaissement', Icons.payments_rounded),
+                  _buildSectionHeader(
+                    'Facturation & Encaissement',
+                    Icons.payments_rounded,
+                  ),
                   const SizedBox(height: 8),
                   _buildInvoiceCard(item.visitId),
                   const SizedBox(height: 18),
@@ -1415,7 +1630,8 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
 
   Widget _buildVitalsCard(VitalsSummary vitals) {
     final temp = vitals.temperature != null ? '${vitals.temperature}°C' : '--';
-    final bp = vitals.systolicPressure != null && vitals.diastolicPressure != null
+    final bp =
+        vitals.systolicPressure != null && vitals.diastolicPressure != null
         ? '${vitals.systolicPressure}/${vitals.diastolicPressure} mmHg'
         : '--';
     final pulse = vitals.pulse != null ? '${vitals.pulse} bpm' : '--';
@@ -1456,11 +1672,18 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11.5, color: Colors.grey[600])),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11.5, color: Colors.grey[600]),
+          ),
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
@@ -1483,7 +1706,8 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
           _buildTextInfo('Examen Clinique', consultation.clinicalExam),
           const SizedBox(height: 10),
           _buildTextInfo('Diagnostic final', consultation.diagnosis),
-          if (consultation.advice != null && consultation.advice!.isNotEmpty) ...[
+          if (consultation.advice != null &&
+              consultation.advice!.isNotEmpty) ...[
             const SizedBox(height: 10),
             _buildTextInfo('Conduite à tenir / Conseils', consultation.advice!),
           ],
@@ -1491,11 +1715,20 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
             const Divider(height: 20),
             const Text(
               'Ordonnance médicale',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.deepHealthBlue),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: AppColors.deepHealthBlue,
+              ),
             ),
             const SizedBox(height: 8),
             if (_loadingPrescription)
-              const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()))
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(),
+                ),
+              )
             else if (_prescription != null) ...[
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1504,12 +1737,19 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Row(
                       children: [
-                        const Icon(Icons.circle, size: 6, color: AppColors.medicalGreen),
+                        const Icon(
+                          Icons.circle,
+                          size: 6,
+                          color: AppColors.medicalGreen,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             '${item.drugName} - ${item.dosage ?? ""} (${item.form ?? ""})',
-                            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                         ),
                       ],
@@ -1520,7 +1760,9 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: () {
-                  final pdfUrl = _prescription!.pdfUrl ?? '/consultations/${consultation.id}/prescription/pdf';
+                  final pdfUrl =
+                      _prescription!.pdfUrl ??
+                      '/consultations/${consultation.id}/prescription/pdf';
                   _openPdf(pdfUrl);
                 },
                 icon: const Icon(Icons.print_rounded, size: 16),
@@ -1532,7 +1774,10 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
                 ),
               ),
             ] else
-              const Text('Impossible de charger l\'ordonnance.', style: TextStyle(fontSize: 12, color: AppColors.error)),
+              const Text(
+                'Impossible de charger l\'ordonnance.',
+                style: TextStyle(fontSize: 12, color: AppColors.error),
+              ),
           ],
         ],
       ),
@@ -1545,7 +1790,11 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.deepHealthBlue),
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: AppColors.deepHealthBlue,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -1557,8 +1806,13 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
   }
 
   Widget _buildLabResultsCard(PatientLabResultSummary labResult) {
-    final badgeColor = labResult.isNormal ? AppColors.medicalGreen : AppColors.error;
-    final badgeText = labResult.isNormal ? 'Résultats normaux' : 'Résultats anormaux / Pathologie';
+    final badgeColor = labResult.isNormal
+        ? AppColors.medicalGreen
+        : AppColors.error;
+    final badgeText = labResult.isNormal
+        ? 'Résultats normaux'
+        : 'Résultats anormaux / Pathologie';
+    final examType = _compactLabExamType(labResult.examType);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1572,15 +1826,36 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Type d\'examen', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.deepHealthBlue)),
-                  const SizedBox(height: 2),
-                  Text(labResult.examType, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Type d\'examen',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.deepHealthBlue,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      examType,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        height: 1.16,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -1590,30 +1865,64 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
                 ),
                 child: Text(
                   badgeText,
-                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: badgeColor),
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: badgeColor,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           _buildTextInfo('Analyses / Résultats saisis', labResult.results),
-          if (labResult.observations != null && labResult.observations!.isNotEmpty) ...[
+          if (labResult.observations != null &&
+              labResult.observations!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _buildTextInfo('Observations du laboratoire', labResult.observations!),
+            _buildTextInfo(
+              'Observations du laboratoire',
+              labResult.observations!,
+            ),
           ],
           const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Date prélèvement : ${_formatDate(labResult.sampleDate)}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              Expanded(
+                child: Text(
+                  'Date prélèvement : ${_formatDateOnly(labResult.sampleDate)}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
               ),
-              Text(
-                'N° Dossier LAB : ${labResult.dossierNumber ?? "—"}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.bold),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'N° Dossier LAB : ${labResult.dossierNumber ?? "—"}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () =>
+                _openPdf('/visits/${widget.item.visitId}/lab-results/pdf'),
+            icon: const Icon(Icons.print_rounded, size: 16),
+            label: const Text('Imprimer les résultats'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.deepHealthBlue,
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(38),
+            ),
           ),
         ],
       ),
@@ -1633,17 +1942,31 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
         children: [
           const Row(
             children: [
-              Icon(Icons.check_circle_rounded, color: AppColors.medicalGreen, size: 18),
+              Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.medicalGreen,
+                size: 18,
+              ),
               SizedBox(width: 8),
               Text(
                 'Paiement encaissé avec succès',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),
           if (_loadingInvoice) ...[
             const SizedBox(height: 12),
-            const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+            const Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
           ] else if (_invoice != null) ...[
             const Divider(height: 20),
             Row(
@@ -1651,7 +1974,11 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
               children: [
                 Text(
                   'N° Reçu : ${_invoice!.invoiceNumber}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.deepHealthBlue),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.deepHealthBlue,
+                  ),
                 ),
                 Text(
                   _formatDate(_invoice!.createdAt),
@@ -1669,12 +1996,19 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
                     Expanded(
                       child: Text(
                         '${line.label} (x${line.quantity})',
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                     Text(
                       '${line.price.toStringAsFixed(0)} FCFA',
-                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ],
                 ),
@@ -1686,11 +2020,19 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
               children: [
                 const Text(
                   'Montant total payé :',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 Text(
                   '${_invoice!.paidAmount.toStringAsFixed(0)} FCFA',
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.medicalGreen),
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.medicalGreen,
+                  ),
                 ),
               ],
             ),
@@ -1712,7 +2054,20 @@ class _VisitDetailSheetState extends State<_VisitDetailSheet> {
   }
 
   String _formatDate(DateTime dt) {
-    final timeStr = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} à $timeStr';
+  }
+
+  String _formatDateOnly(DateTime dt) {
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+  }
+
+  String _compactLabExamType(String value) {
+    final separatorIndex = value.indexOf(' - ');
+    if (separatorIndex <= 0) {
+      return value;
+    }
+    return value.substring(0, separatorIndex).trim();
   }
 }

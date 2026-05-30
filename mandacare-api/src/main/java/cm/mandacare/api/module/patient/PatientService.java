@@ -151,9 +151,7 @@ class PatientService {
                     })
                     .orElse(null);
 
-            LabResultResponse labResultResponse = labResultRepository.findByVisitId(visit.id())
-                    .stream()
-                    .findFirst()
+            LabResultResponse labResultResponse = labResultRepository.findFirstByVisitIdOrderByCreatedAtDesc(visit.id())
                     .map(labResult -> new LabResultResponse(
                             labResult.id(),
                             labResult.resultNumber(),

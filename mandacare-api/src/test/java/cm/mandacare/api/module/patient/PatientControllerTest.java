@@ -1023,6 +1023,53 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.latestVisit.status").value("LAB"));
     }
 
+    @Test
+    void printsLatestLabResultPdf() throws Exception {
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Labpdf", "Patient", "+221 70 000 00 88")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Fièvre",
+                                  "clinicalExam": "Patient fébrile",
+                                  "diagnosis": "Bilan infectieux",
+                                  "decision": "SEND_TO_LAB",
+                                  "status": "VALIDATED",
+                                  "prescribedExams": ["30000000-0000-0000-0000-000000000007"]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
+                        .with(user("cashier"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cashPaymentJson()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latestVisit.status").value("LAB"));
+
+        mockMvc.perform(post("/api/v1/visits/{id}/lab-results", visitId)
+                        .with(user("lab"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(labResultJson()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latestVisit.status").value("IN_CONSULTATION"));
+
+        mockMvc.perform(get("/api/v1/visits/{id}/lab-results/pdf", visitId))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/pdf"));
+    }
+
     private String validPatientJson(String firstName, String lastName, String phone) {
         return """
                 {
@@ -1065,4 +1112,3 @@ class PatientControllerTest {
                 """;
     }
 }
-

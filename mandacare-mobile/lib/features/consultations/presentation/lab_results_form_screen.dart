@@ -30,14 +30,13 @@ class LabResultsFormScreen extends StatefulWidget {
 
 class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _resultsController = TextEditingController();
   final _notesController = TextEditingController();
+  final List<_LabExamResultEntry> _examResultEntries = [];
   bool _saving = false;
-  bool _normalResults = false;
   DateTime _sampleDate = DateTime.now();
-  String _examType = _examTypes.first;
+  String _manualExamType = _fallbackExamTypes.first;
 
-  static const _examTypes = [
+  static const _fallbackExamTypes = [
     'Numération Formule Sanguine (NFS)',
     'Biochimie',
     'Parasitologie',
@@ -52,6 +51,7 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
   @override
   void initState() {
     super.initState();
+    _syncExamResultEntries([_manualExamType]);
     _loadInvoices();
   }
 
@@ -64,6 +64,10 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
       if (mounted) {
         setState(() {
           _invoices = list;
+          final prescribedExams = _prescribedExams;
+          if (prescribedExams.isNotEmpty) {
+            _syncExamResultEntries(prescribedExams);
+          }
         });
       }
     } catch (_) {
@@ -75,7 +79,7 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
     final List<String> exams = [];
     for (final inv in _invoices) {
       for (final line in inv.items) {
-        if (line.type == 'EXAM') {
+        if (line.type == 'EXAM' && !exams.contains(line.label)) {
           exams.add(line.label);
         }
       }
@@ -83,9 +87,13 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
     return exams;
   }
 
+  bool get _usesPrescribedExams => _prescribedExams.isNotEmpty;
+
   @override
   void dispose() {
-    _resultsController.dispose();
+    for (final entry in _examResultEntries) {
+      entry.dispose();
+    }
     _notesController.dispose();
     super.dispose();
   }
@@ -160,17 +168,23 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
 
   List<Widget> get _sampleFields {
     return [
-      CompactDropdownField(
-        label: "Type d'examen",
-        value: _examType,
-        items: _examTypes,
-        onChanged: (value) {
-          if (value != null) {
-            setState(() => _examType = value);
-          }
-        },
-        icon: Icons.science_rounded,
-      ),
+      if (_usesPrescribedExams)
+        _SampleExamSummary(exams: _prescribedExams)
+      else
+        CompactDropdownField(
+          label: "Examen réalisé",
+          value: _manualExamType,
+          items: _fallbackExamTypes,
+          onChanged: (value) {
+            if (value != null) {
+              setState(() {
+                _manualExamType = value;
+                _syncExamResultEntries([value]);
+              });
+            }
+          },
+          icon: Icons.science_rounded,
+        ),
       const SizedBox(height: 12),
       _DatePickerField(
         label: 'Prélevé le',
@@ -182,29 +196,17 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
 
   List<Widget> get _resultFields {
     return [
-      CompactTextFormField(
-        fieldKey: const ValueKey('lab-results-field'),
-        controller: _resultsController,
-        label: 'Résultats',
-        hintText: 'Saisir les résultats du laboratoire...',
-        icon: Icons.biotech_rounded,
-        minLines: 4,
-        maxLines: 10,
-        textCapitalization: TextCapitalization.sentences,
-        textInputAction: TextInputAction.newline,
-        keyboardType: TextInputType.multiline,
-        validator: (value) {
-          if (!_normalResults && (value == null || value.trim().isEmpty)) {
-            return 'Les résultats sont requis';
-          }
-          return null;
-        },
-      ),
-      const SizedBox(height: 12),
-      _NormalResultsToggle(
-        value: _normalResults,
-        onChanged: (value) => setState(() => _normalResults = value),
-      ),
+      for (var index = 0; index < _examResultEntries.length; index++) ...[
+        _ExamResultPanel(
+          entry: _examResultEntries[index],
+          index: index,
+          fieldKey: index == 0 ? const ValueKey('lab-results-field') : null,
+          onNormalChanged: (value) {
+            setState(() => _examResultEntries[index].normal = value);
+          },
+        ),
+        if (index < _examResultEntries.length - 1) const SizedBox(height: 12),
+      ],
     ];
   }
 
@@ -236,9 +238,16 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
       return;
     }
 
-    if (!_normalResults && _resultsController.text.trim().isEmpty) {
+    _LabExamResultEntry? missingEntry;
+    for (final entry in _examResultEntries) {
+      if (!entry.normal && entry.resultsText.isEmpty) {
+        missingEntry = entry;
+        break;
+      }
+    }
+    if (missingEntry != null) {
       _showError(
-        'Veuillez saisir les résultats ou cocher « Résultats normaux ».',
+        'Veuillez saisir les résultats de ${missingEntry.examName} ou cocher « Normal ».',
       );
       return;
     }
@@ -249,12 +258,12 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
         session: widget.session,
         visitId: widget.visitId,
         payload: CreateLabResultPayload(
-          examType: _examType,
-          results: _normalResults ? _normalResultText : _resultsController.text,
+          examType: _examTypeSummary,
+          results: _combinedResultsText,
           observations: _notesController.text,
           sampleDate: _sampleDate,
           dossierNumber: _dossierNumber,
-          isNormal: _normalResults,
+          isNormal: _allResultsNormal,
         ),
       );
       if (!mounted) {
@@ -289,6 +298,59 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
   static String _twoDigits(int value) => value.toString().padLeft(2, '0');
 
   static const String _normalResultText = 'Résultats normaux';
+
+  String get _examTypeSummary {
+    if (_examResultEntries.length == 1) {
+      return _examResultEntries.first.examName;
+    }
+    final names = _examResultEntries.map((entry) => entry.examName).join(', ');
+    final summary =
+        'Bilan laboratoire (${_examResultEntries.length} examens) - $names';
+    return summary.length <= 180 ? summary : summary.substring(0, 180);
+  }
+
+  bool get _allResultsNormal {
+    return _examResultEntries.isNotEmpty &&
+        _examResultEntries.every((entry) => entry.normal);
+  }
+
+  String get _combinedResultsText {
+    if (_examResultEntries.length == 1) {
+      final entry = _examResultEntries.first;
+      return entry.normal ? _normalResultText : entry.resultsText;
+    }
+
+    return _examResultEntries
+        .map((entry) {
+          final status = entry.normal ? 'Normal' : 'Anormal / à interpréter';
+          final result = entry.normal ? _normalResultText : entry.resultsText;
+          return '${entry.examName}\nStatut : $status\nRésultat : $result';
+        })
+        .join('\n\n');
+  }
+
+  void _syncExamResultEntries(List<String> examNames) {
+    final names = examNames
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .toList(growable: false);
+    final nextNames = names.isEmpty ? [_manualExamType] : names;
+    final existing = {
+      for (final entry in _examResultEntries) entry.examName: entry,
+    };
+    final nextEntries = <_LabExamResultEntry>[];
+
+    for (final name in nextNames) {
+      nextEntries.add(existing.remove(name) ?? _LabExamResultEntry(name));
+    }
+    for (final removed in existing.values) {
+      removed.dispose();
+    }
+
+    _examResultEntries
+      ..clear()
+      ..addAll(nextEntries);
+  }
 
   Widget _buildPrescribedExamsCard() {
     final exams = _prescribedExams;
@@ -355,6 +417,185 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LabExamResultEntry {
+  _LabExamResultEntry(this.examName);
+
+  final String examName;
+  final TextEditingController resultsController = TextEditingController();
+  bool normal = false;
+
+  String get resultsText => resultsController.text.trim();
+
+  void dispose() {
+    resultsController.dispose();
+  }
+}
+
+class _SampleExamSummary extends StatelessWidget {
+  const _SampleExamSummary({required this.exams});
+
+  final List<String> exams;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.medicalGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.medicalGreen.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.fact_check_rounded,
+                size: 18,
+                color: AppColors.medicalGreen,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${exams.length} examen${exams.length > 1 ? 's' : ''} à renseigner',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.medicalGreen,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final exam in exams) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.check_circle_rounded,
+                    size: 15,
+                    color: AppColors.medicalGreen,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    exam,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.18,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (exam != exams.last) const SizedBox(height: 5),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ExamResultPanel extends StatelessWidget {
+  const _ExamResultPanel({
+    required this.entry,
+    required this.index,
+    required this.onNormalChanged,
+    this.fieldKey,
+  });
+
+  final _LabExamResultEntry entry;
+  final int index;
+  final Key? fieldKey;
+  final ValueChanged<bool> onNormalChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.lightBackground.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.55)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.deepHealthBlue.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: AppColors.deepHealthBlue,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  entry.examName,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.deepHealthBlue,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          CompactTextFormField(
+            fieldKey: fieldKey,
+            controller: entry.resultsController,
+            label: 'Résultat',
+            hintText: 'Saisir le résultat pour cet examen...',
+            icon: Icons.biotech_rounded,
+            minLines: 3,
+            maxLines: 8,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.newline,
+            keyboardType: TextInputType.multiline,
+            validator: (value) {
+              if (!entry.normal && (value == null || value.trim().isEmpty)) {
+                return 'Résultat requis ou cochez Normal';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 10),
+          _NormalResultsToggle(
+            value: entry.normal,
+            label: 'Normal',
+            onChanged: onNormalChanged,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -467,10 +708,15 @@ class _InfoRow extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _NormalResultsToggle extends StatelessWidget {
-  const _NormalResultsToggle({required this.value, required this.onChanged});
+  const _NormalResultsToggle({
+    required this.value,
+    required this.onChanged,
+    this.label = 'Résultats normaux',
+  });
 
   final bool value;
   final ValueChanged<bool> onChanged;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -500,7 +746,7 @@ class _NormalResultsToggle extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Résultats normaux',
+              label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: value ? AppColors.success : AppColors.textPrimary,
                 fontWeight: FontWeight.w600,

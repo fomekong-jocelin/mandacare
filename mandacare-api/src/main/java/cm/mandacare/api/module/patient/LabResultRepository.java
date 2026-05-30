@@ -7,4 +7,5 @@ interface LabResultRepository extends JpaRepository<LabResultEntity, UUID> {
 
     boolean existsByResultNumber(String resultNumber);
     java.util.List<LabResultEntity> findByVisitId(UUID visitId);
+    java.util.Optional<LabResultEntity> findFirstByVisitIdOrderByCreatedAtDesc(UUID visitId);
 }

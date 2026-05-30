@@ -167,10 +167,10 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     try {
       final queue = await widget.patientGateway.listTodayQueue(
         session: widget.session,
+        status: PatientStatus.inConsultation,
+        limit: 20,
       );
-      final consultations = queue
-          .where((patient) => patient.status == PatientStatus.inConsultation)
-          .toList(growable: false);
+      final consultations = queue.toList(growable: false);
       final selectedPatient = _resolvedSelection(consultations);
 
       if (!mounted) {

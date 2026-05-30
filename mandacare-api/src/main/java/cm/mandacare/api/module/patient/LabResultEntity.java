@@ -98,6 +98,14 @@ class LabResultEntity {
         return id;
     }
 
+    PatientEntity patient() {
+        return patient;
+    }
+
+    VisitEntity visit() {
+        return visit;
+    }
+
     String resultNumber() {
         return resultNumber;
     }
