@@ -64,7 +64,7 @@ class _TariffManagementScreenState extends State<TariffManagementScreen> {
               subtitle: 'Gestion des tarifs et actes',
               trailing: IconButton.filled(
                 key: const ValueKey('add-tariff-button'),
-                onPressed: () => _openForm(),
+                onPressed: _showTypePicker,
                 tooltip: 'Ajouter un acte',
                 icon: const Icon(Icons.add_rounded),
               ),
@@ -141,7 +141,7 @@ class _TariffManagementScreenState extends State<TariffManagementScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: _EmptyState(
                             type: _activeType,
-                            onAdd: () => _openForm(),
+                            onAdd: _showTypePicker,
                           ),
                         ),
                       )
@@ -164,7 +164,7 @@ class _TariffManagementScreenState extends State<TariffManagementScreen> {
                                   key: ValueKey('$_activeType-$cat'),
                                   label: cat,
                                   items: grouped[cat] ?? [],
-                                  onTap: _openForm,
+                                  onTap: (item) => _openForm(item: item, type: _activeType),
                                 ),
                               ),
                           ],
@@ -229,18 +229,250 @@ class _TariffManagementScreenState extends State<TariffManagementScreen> {
     }
   }
 
-  Future<void> _openForm([TariffItem? item]) async {
+  /// Catégories existantes pour un type donné (triées, dédupliquées).
+  List<String> _categoriesFor(TariffType type) {
+    final items = _data[type] ?? [];
+    final cats = <String>{};
+    for (final item in items) {
+      if (item.category?.isNotEmpty == true) cats.add(item.category!);
+    }
+    final list = cats.toList()..sort();
+    return list;
+  }
+
+  Future<void> _showTypePicker() async {
+    final type = await showModalBottomSheet<TariffType>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const _TypePickerSheet(),
+    );
+    if (!mounted || type == null) return;
+    await _openForm(type: type);
+  }
+
+  Future<void> _openForm({TariffItem? item, TariffType? type}) async {
+    final resolvedType = type ?? _activeType;
+    final cats = _categoriesFor(resolvedType);
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => TariffFormScreen(
           session: widget.session,
           tariffGateway: widget.tariffGateway,
-          type: _activeType,
+          type: resolvedType,
           item: item,
+          existingCategories: cats,
         ),
       ),
     );
-    if (saved == true) await _load(_activeType);
+    if (saved == true) await _load(resolvedType);
+  }
+}
+
+// ─── Type picker (bottom sheet) ───────────────────────────────────────────────
+
+class _TypePickerSheet extends StatelessWidget {
+  const _TypePickerSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.lightBackground,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 4),
+            child: Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Titre
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.deepHealthBlue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: AppColors.deepHealthBlue,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nouvel acte tarifaire',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    Text(
+                      'Sélectionnez le type d\'acte à créer',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Divider(
+            height: 16,
+            indent: 20,
+            endIndent: 20,
+            color: AppColors.border.withValues(alpha: 0.40),
+          ),
+          // Options
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Column(
+              children: [
+                _TypeOption(
+                  type: TariffType.exam,
+                  icon: Icons.science_rounded,
+                  color: AppColors.medicalGreen,
+                  title: 'Examen de laboratoire',
+                  description:
+                      'Analyses biologiques, sérologies, hématologie…',
+                  onTap: () => Navigator.of(context).pop(TariffType.exam),
+                ),
+                const SizedBox(height: 10),
+                _TypeOption(
+                  type: TariffType.benefit,
+                  icon: Icons.medical_services_rounded,
+                  color: AppColors.deepHealthBlue,
+                  title: 'Acte de soin',
+                  description:
+                      'Consultations, soins infirmiers, actes chirurgicaux…',
+                  onTap: () => Navigator.of(context).pop(TariffType.benefit),
+                ),
+              ],
+            ),
+          ),
+          // Annuler
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                minimumSize: const Size.fromHeight(44),
+                foregroundColor: AppColors.textSecondary,
+              ),
+              child: const Text('Annuler'),
+            ),
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
+        ],
+      ),
+    );
+  }
+}
+
+class _TypeOption extends StatelessWidget {
+  const _TypeOption({
+    required this.type,
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.description,
+    required this.onTap,
+  });
+
+  final TariffType type;
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String description;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.border.withValues(alpha: 0.45),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.deepHealthBlue.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                            height: 1.3,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: AppColors.textSecondary.withValues(alpha: 0.45),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -770,41 +1002,77 @@ class _TariffCard extends StatelessWidget {
 
     return Material(
       color: active
-          ? AppColors.lightBackground.withValues(alpha: 0.70)
-          : AppColors.lightBackground.withValues(alpha: 0.40),
+          ? AppColors.card
+          : AppColors.lightBackground.withValues(alpha: 0.60),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: active
-                  ? AppColors.border.withValues(alpha: 0.30)
+                  ? AppColors.border.withValues(alpha: 0.35)
                   : AppColors.border.withValues(alpha: 0.18),
             ),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: AppColors.deepHealthBlue.withValues(alpha: 0.02),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Ligne 1 : code + prix + chevron ────────────────────────
+              // ── Row 1: Designation Name & Edit Icon ──────────────────
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Badge code — une seule ligne, largeur auto
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: active
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary.withValues(alpha: 0.70),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            height: 1.3,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.edit_outlined,
+                    size: 15,
+                    color: AppColors.textSecondary.withValues(alpha: 0.40),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // ── Row 2: Code Badge, Inactive Tag & Price ──────────────
+              Row(
+                children: [
+                  // Code badge
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: codeColor.withValues(alpha: 0.10),
+                      color: codeColor.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       item.code,
                       maxLines: 1,
-                      overflow: TextOverflow.clip,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color: codeColor,
                             fontWeight: FontWeight.w800,
@@ -814,7 +1082,6 @@ class _TariffCard extends StatelessWidget {
                           ),
                     ),
                   ),
-                  // Statut inactif
                   if (!active) ...[
                     const SizedBox(width: 8),
                     Container(
@@ -837,7 +1104,7 @@ class _TariffCard extends StatelessWidget {
                     ),
                   ],
                   const Spacer(),
-                  // Prix
+                  // Price
                   RichText(
                     text: TextSpan(
                       children: [
@@ -865,28 +1132,7 @@ class _TariffCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Icon(
-                    Icons.edit_outlined,
-                    size: 15,
-                    color: AppColors.textSecondary.withValues(alpha: 0.40),
-                  ),
                 ],
-              ),
-              const SizedBox(height: 7),
-              // ── Ligne 2 : désignation ────────────────────────────────────
-              Text(
-                item.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: active
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary.withValues(alpha: 0.70),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13.5,
-                      height: 1.3,
-                    ),
               ),
             ],
           ),

@@ -16,6 +16,7 @@ class TariffFormScreen extends StatefulWidget {
     required this.session,
     required this.tariffGateway,
     required this.type,
+    required this.existingCategories,
     this.item,
     super.key,
   });
@@ -23,6 +24,7 @@ class TariffFormScreen extends StatefulWidget {
   final AuthSession session;
   final TariffGateway tariffGateway;
   final TariffType type;
+  final List<String> existingCategories;
   final TariffItem? item;
 
   @override
@@ -38,6 +40,9 @@ class _TariffFormScreenState extends State<TariffFormScreen> {
   late bool _active;
   bool _saving = false;
 
+  String? _selectedCategory;
+  bool _isNewCategory = false;
+
   bool get _editing => widget.item != null;
 
   @override
@@ -46,11 +51,26 @@ class _TariffFormScreenState extends State<TariffFormScreen> {
     final item = widget.item;
     _codeCtrl = TextEditingController(text: item?.code ?? '');
     _nameCtrl = TextEditingController(text: item?.name ?? '');
-    _categoryCtrl = TextEditingController(text: item?.category ?? '');
     _priceCtrl = TextEditingController(
       text: item != null ? item.price.toStringAsFixed(0) : '',
     );
     _active = item?.active ?? true;
+
+    final itemCat = item?.category ?? '';
+    _categoryCtrl = TextEditingController(text: itemCat);
+
+    if (widget.existingCategories.isEmpty) {
+      _isNewCategory = true;
+      _selectedCategory = '__NEW_CATEGORY__';
+    } else {
+      if (itemCat.isNotEmpty) {
+        _selectedCategory = itemCat;
+        _isNewCategory = false;
+      } else {
+        _selectedCategory = '';
+        _isNewCategory = false;
+      }
+    }
   }
 
   @override
@@ -115,14 +135,7 @@ class _TariffFormScreenState extends State<TariffFormScreen> {
                                   : null,
                         ),
                         const SizedBox(height: 12),
-                        CompactTextFormField(
-                          controller: _categoryCtrl,
-                          label: 'Catégorie (optionnelle)',
-                          icon: Icons.folder_open_rounded,
-                          textInputAction: TextInputAction.next,
-                          textCapitalization: TextCapitalization.characters,
-                          helperText: 'Ex : BIOCHIMIE, HÉMATOLOGIE…',
-                        ),
+                        _buildCategoryField(context),
                       ],
                     ),
 
@@ -176,6 +189,10 @@ class _TariffFormScreenState extends State<TariffFormScreen> {
       final raw = _priceCtrl.text.trim().replaceAll(' ', '').replaceAll(',', '.');
       final price = double.parse(raw);
 
+      final categoryValue = _isNewCategory
+          ? _categoryCtrl.text.trim().toUpperCase()
+          : (_selectedCategory ?? '').trim().toUpperCase();
+
       if (_editing) {
         await widget.tariffGateway.updateItem(
           session: widget.session,
@@ -183,7 +200,7 @@ class _TariffFormScreenState extends State<TariffFormScreen> {
           id: widget.item!.id,
           payload: UpdateTariffPayload(
             name: _nameCtrl.text.trim(),
-            category: _optional(_categoryCtrl.text),
+            category: _optional(categoryValue),
             price: price,
             active: _active,
           ),
@@ -195,7 +212,7 @@ class _TariffFormScreenState extends State<TariffFormScreen> {
           payload: TariffPayload(
             code: _codeCtrl.text.trim(),
             name: _nameCtrl.text.trim(),
-            category: _optional(_categoryCtrl.text),
+            category: _optional(categoryValue),
             price: price,
           ),
         );
@@ -249,6 +266,87 @@ class _TariffFormScreenState extends State<TariffFormScreen> {
   String _message(Object error) {
     if (error is ApiException) return error.message;
     return "Impossible d'enregistrer cet acte.";
+  }
+
+  Widget _buildCategoryField(BuildContext context) {
+    final options = <String>{};
+    options.add(''); // Aucun
+    options.addAll(widget.existingCategories);
+    if (widget.item?.category != null && widget.item!.category!.isNotEmpty) {
+      options.add(widget.item!.category!);
+    }
+    
+    final dropdownItems = options.toList();
+    final textStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: AppColors.textPrimary,
+          fontSize: 15,
+          height: 1.18,
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const CompactFieldLabel(label: 'Catégorie (optionnelle)'),
+        const SizedBox(height: 5),
+        DropdownButtonFormField<String>(
+          value: _isNewCategory ? '__NEW_CATEGORY__' : _selectedCategory,
+          onChanged: (val) {
+            setState(() {
+              if (val == '__NEW_CATEGORY__') {
+                _isNewCategory = true;
+                _selectedCategory = '__NEW_CATEGORY__';
+              } else {
+                _isNewCategory = false;
+                _selectedCategory = val;
+              }
+            });
+          },
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+          style: textStyle,
+          decoration: compactInputDecoration(
+            context,
+            prefixIcon: const Icon(Icons.folder_open_rounded, size: 19),
+          ),
+          dropdownColor: AppColors.card,
+          borderRadius: BorderRadius.circular(10),
+          items: [
+            for (final cat in dropdownItems)
+              DropdownMenuItem<String>(
+                value: cat,
+                child: Text(cat.isEmpty ? 'Aucune catégorie' : cat),
+              ),
+            const DropdownMenuItem<String>(
+              value: '__NEW_CATEGORY__',
+              child: Text(
+                'Créer une nouvelle catégorie...',
+                style: TextStyle(
+                  color: AppColors.deepHealthBlue,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_isNewCategory) ...[
+          const SizedBox(height: 12),
+          CompactTextFormField(
+            controller: _categoryCtrl,
+            label: 'Nom de la nouvelle catégorie',
+            icon: Icons.create_new_folder_rounded,
+            textInputAction: TextInputAction.next,
+            textCapitalization: TextCapitalization.characters,
+            helperText: 'Saisissez la nouvelle catégorie, ex : BIOCHIMIE',
+            validator: (v) {
+              if (_isNewCategory && (v == null || v.trim().isEmpty)) {
+                return 'Veuillez saisir le nom de la catégorie';
+              }
+              return null;
+            },
+          ),
+        ],
+      ],
+    );
   }
 }
 
