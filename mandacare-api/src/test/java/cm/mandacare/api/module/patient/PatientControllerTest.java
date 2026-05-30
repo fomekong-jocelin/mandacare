@@ -148,6 +148,85 @@ class PatientControllerTest {
     }
 
     @Test
+    void allowsCashDeskReturnToConsultationForCorrection() throws Exception {
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Correction", "Patient", "+221 70 000 00 70")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Douleur",
+                                  "clinicalExam": "Patient stable",
+                                  "diagnosis": "Surveillance",
+                                  "advice": "Contrôle",
+                                  "decision": "RELEASE_PATIENT"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        mockMvc.perform(patch("/api/v1/visits/{id}/status", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "IN_CONSULTATION"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latestVisit.id").value(visitId))
+                .andExpect(jsonPath("$.latestVisit.status").value("IN_CONSULTATION"));
+    }
+
+    @Test
+    void rejectsDirectCashDeskStatusCompletion() throws Exception {
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Bypass", "Cash", "+221 70 000 00 71")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Fièvre",
+                                  "clinicalExam": "Patient fébrile",
+                                  "diagnosis": "Bilan infectieux",
+                                  "advice": "NFS",
+                                  "decision": "SEND_TO_LAB"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        mockMvc.perform(patch("/api/v1/visits/{id}/status", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "LAB"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_VISIT_STATUS_TRANSITION"));
+    }
+
+    @Test
     void createsVitalsAndReturnsLatestForVisit() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
                         .with(user("doctor"))

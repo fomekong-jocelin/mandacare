@@ -285,6 +285,66 @@ void main() {
     expect(patientGateway.statusFor(visitId), PatientStatus.cashDesk);
   });
 
+  testWidgets('returns patient from cash desk to consultation for correction', (
+    tester,
+  ) async {
+    final patientGateway = FakePatientGateway();
+    const visitId = '10000000-0000-0000-0000-000000000002';
+
+    await patientGateway.createVitals(
+      session: session,
+      visitId: visitId,
+      payload: const CreateVitalsPayload(
+        temperature: 37.4,
+        systolicPressure: 130,
+        diastolicPressure: 85,
+        pulse: 82,
+        weight: 78,
+        height: 176,
+      ),
+    );
+    await patientGateway.createConsultation(
+      session: session,
+      visitId: visitId,
+      payload: const CreateConsultationPayload(
+        symptoms: 'Fièvre persistante',
+        clinicalExam: 'Patient fébrile',
+        diagnosis: 'Bilan infectieux',
+        advice: 'NFS',
+        decision: ConsultationDecision.sendToLab,
+        status: 'VALIDATED',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MandaCareApp(initialSession: session, patientGateway: patientGateway),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-patients')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mamadou Sarr').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Valider le passage en caisse'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('return-to-consultation-action')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('return-to-consultation-action')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Revenir à la consultation ?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Revenir'));
+    await tester.pumpAndSettle();
+
+    expect(patientGateway.statusFor(visitId), PatientStatus.inConsultation);
+    expect(find.text('Rédiger la consultation'), findsOneWidget);
+  });
+
   testWidgets('saves a consultation as draft without validating fields', (
     tester,
   ) async {
@@ -636,6 +696,16 @@ class FakePatientGateway implements PatientGateway {
     _prescriptionsByConsultation[consultationId] = payload;
   }
 
+  @override
+  Future<void> submitLabResults({
+    required AuthSession session,
+    required String visitId,
+    required CreateLabResultPayload payload,
+  }) async {
+    _labResultsByVisit[visitId] = payload;
+    _visitStatuses[visitId] = PatientStatus.released;
+  }
+
   PatientStatus? statusFor(String visitId) => _visitStatuses[visitId];
 
   bool vitalsSavedFor(String visitId) => _vitalsVisits.contains(visitId);
@@ -643,6 +713,8 @@ class FakePatientGateway implements PatientGateway {
   bool consultationSavedFor(String visitId) {
     return _consultationVisits.contains(visitId);
   }
+
+  final Map<String, CreateLabResultPayload> _labResultsByVisit = {};
 
   double? _bmi(CreateVitalsPayload payload) {
     final weight = payload.weight;

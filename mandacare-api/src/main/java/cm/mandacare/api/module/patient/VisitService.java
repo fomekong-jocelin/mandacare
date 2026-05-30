@@ -32,7 +32,16 @@ class VisitService {
     @Transactional
     PatientResponse changeStatus(UUID visitId, UpdateVisitStatusRequest request) {
         VisitEntity visit = findVisit(visitId);
-        visit.changeStatus(request.status());
+        VisitStatus nextStatus = request.status();
+        if (!isAllowedManualTransition(visit.status(), nextStatus)) {
+            throw new BusinessException(
+                    "INVALID_VISIT_STATUS_TRANSITION",
+                    "Cette transition de visite n'est pas autorisée manuellement.",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        visit.changeStatus(nextStatus);
         return mapper.toResponse(visit.patient(), visit);
     }
 
@@ -77,6 +86,19 @@ class VisitService {
             invoiceNumber = "FAC-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         } while (invoices.existsByInvoiceNumber(invoiceNumber));
         return invoiceNumber;
+    }
+
+    private boolean isAllowedManualTransition(VisitStatus currentStatus, VisitStatus nextStatus) {
+        if (currentStatus == nextStatus) {
+            return true;
+        }
+
+        return switch (currentStatus) {
+            case WAITING -> nextStatus == VisitStatus.IN_CONSULTATION;
+            case CASH_DESK -> nextStatus == VisitStatus.IN_CONSULTATION;
+            case LAB -> nextStatus == VisitStatus.RELEASED;
+            case IN_CONSULTATION, RELEASED -> false;
+        };
     }
 
     private VisitEntity findVisit(UUID visitId) {

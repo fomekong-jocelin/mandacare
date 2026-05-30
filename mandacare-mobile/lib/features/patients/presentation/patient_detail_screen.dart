@@ -435,6 +435,54 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     }
   }
 
+  Future<void> _returnToConsultationStep() async {
+    final latestVisit = _latestVisit;
+    if (latestVisit == null) {
+      _showMessage('Visite non synchronisée avec le serveur.');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Revenir à la consultation ?'),
+          content: const Text(
+            'Le patient quittera la caisse pour permettre la correction de la décision médicale avant encaissement.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.undo_rounded),
+              label: const Text('Revenir'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await widget.patientGateway.changeVisitStatus(
+        session: widget.session,
+        visitId: latestVisit.visitId,
+        status: PatientStatus.inConsultation,
+      );
+      if (mounted) {
+        await _loadTimeline();
+        _showMessage('Patient replacé en consultation.');
+      }
+    } catch (_) {
+      _showMessage('Impossible de revenir à la consultation.');
+    }
+  }
+
   Future<void> _openVitalsForm() async {
     if (_timeline.isEmpty) return;
     final latestItem = _timeline.first;
@@ -533,6 +581,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     status: _currentStatus,
                     hasVitals:
                         _timeline.isNotEmpty && _timeline.first.vitals != null,
+                    onStepTapped: _onStepTapped,
                   ),
                   const SizedBox(height: 14),
                   MetricStrip(
@@ -562,7 +611,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   const SizedBox(height: 18),
                   _SectionTitle(title: 'Actions patient'),
                   const SizedBox(height: 10),
-                  _buildPatientAction(),
+                  ..._buildPatientActions(),
                   const SizedBox(height: 10),
                   (() {
                     final latestConsult = _latestConsultationWithPrescription;
@@ -653,65 +702,151 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       ),
     );
     if (created == true && mounted) {
-      Navigator.of(context).pop(true);
+      // Stay on the detail screen and reload the timeline
+      // instead of popping back to the patient list.
+      _loadTimeline();
     }
   }
 
-  Widget _buildPatientAction() {
+  /// Handle a tap on a workflow stepper step.
+  void _onStepTapped(int stepIndex) {
+    switch (stepIndex) {
+      case 0:
+        // Step 0: Visite — only if no active visit
+        if (!_hasActiveVisit) _openVisitForm();
+        break;
+      case 1:
+        // Step 1: Constantes — open vitals form (create or edit)
+        if (_hasActiveVisit) _openVitalsForm();
+        break;
+      case 2:
+        // Step 2: Consultation — open consultation form
+        if (_hasActiveVisit && _latestVisit?.vitals != null) {
+          _openConsultationForm();
+        }
+        break;
+      case 3:
+        // Step 3: Caisse
+        if (_latestVisit?.status == PatientStatus.cashDesk) {
+          _completeCashDeskStep();
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// Builds a list of action tiles: the current step action PLUS
+  /// shortcuts to go back to previous steps.
+  List<Widget> _buildPatientActions() {
     final latestVisit = _latestVisit;
+    final actions = <Widget>[];
+
+    // ── No active visit: only show "new visit" ──
     if (!_hasActiveVisit || latestVisit == null) {
-      return ActionTile(
-        icon: Icons.add_box_rounded,
-        title: 'Nouvelle visite',
-        subtitle: 'Enregistrer une nouvelle visite (Étape 1)',
-        onTap: _openVisitForm,
+      actions.add(
+        ActionTile(
+          icon: Icons.add_box_rounded,
+          title: 'Nouvelle visite',
+          subtitle: 'Enregistrer une nouvelle visite (Étape 1)',
+          onTap: _openVisitForm,
+        ),
       );
+      return actions;
     }
 
+    // ── Current-step action (primary) ──
     if (latestVisit.status == PatientStatus.cashDesk) {
       final nextLabel = _statusAfterCashDesk == PatientStatus.lab
           ? 'Labo'
           : 'Sortie';
-      return ActionTile(
-        icon: Icons.payments_rounded,
-        title: 'Valider le passage en caisse',
-        subtitle: 'Encaissement puis orientation vers $nextLabel (Étape 4)',
-        onTap: _completeCashDeskStep,
+      actions.add(
+        ActionTile(
+          icon: Icons.payments_rounded,
+          title: 'Valider le passage en caisse',
+          subtitle: 'Encaissement puis orientation vers $nextLabel (Étape 4)',
+          onTap: _completeCashDeskStep,
+        ),
+      );
+      actions.add(const SizedBox(height: 6));
+      actions.add(
+        ActionTile(
+          key: const ValueKey('return-to-consultation-action'),
+          icon: Icons.undo_rounded,
+          title: 'Revenir en consultation',
+          subtitle: 'Corriger la décision médicale avant encaissement',
+          onTap: _returnToConsultationStep,
+        ),
+      );
+    } else if (latestVisit.status == PatientStatus.lab) {
+      actions.add(
+        const ActionTile(
+          icon: Icons.science_rounded,
+          title: 'En attente du laboratoire',
+          subtitle: 'Examens et résultats à traiter au laboratoire (Étape 5)',
+        ),
+      );
+    } else if (latestVisit.vitals == null) {
+      actions.add(
+        ActionTile(
+          icon: Icons.monitor_heart_rounded,
+          title: 'Saisir les constantes',
+          subtitle: 'Tension, pouls, température (Étape 2)',
+          onTap: _openVitalsForm,
+        ),
+      );
+    } else if (latestVisit.status != PatientStatus.inConsultation) {
+      actions.add(
+        ActionTile(
+          icon: Icons.play_arrow_rounded,
+          title: 'Démarrer la consultation',
+          subtitle: 'Fiche d\'observation & diagnostic (Étape 3)',
+          onTap: _openConsultationForm,
+        ),
+      );
+    } else {
+      actions.add(
+        ActionTile(
+          icon: Icons.assignment_rounded,
+          title: 'Rédiger la consultation',
+          subtitle: 'Saisir le rapport et l\'ordonnance (Étape 3)',
+          onTap: _openConsultationForm,
+        ),
       );
     }
 
-    if (latestVisit.status == PatientStatus.lab) {
-      return const ActionTile(
-        icon: Icons.science_rounded,
-        title: 'En attente du laboratoire',
-        subtitle: 'Examens et résultats à traiter au laboratoire (Étape 5)',
+    // ── Back-step actions (secondary) — allow returning to previous steps ──
+    // Show "Modifier les constantes" if vitals exist and we're past that step
+    if (latestVisit.vitals != null &&
+        latestVisit.status != PatientStatus.waiting) {
+      actions.add(const SizedBox(height: 6));
+      actions.add(
+        ActionTile(
+          icon: Icons.edit_note_rounded,
+          title: 'Modifier les constantes',
+          subtitle: 'Revenir à l\'étape 2 pour corriger les constantes',
+          onTap: _openVitalsForm,
+        ),
       );
     }
 
-    if (latestVisit.vitals == null) {
-      return ActionTile(
-        icon: Icons.monitor_heart_rounded,
-        title: 'Saisir les constantes',
-        subtitle: 'Tension, pouls, température (Étape 2)',
-        onTap: _openVitalsForm,
+    // Show "Modifier la consultation" if we're past consultation
+    // (at cashDesk or lab) and a consultation exists
+    if (latestVisit.consultation != null &&
+        (latestVisit.status == PatientStatus.cashDesk ||
+            latestVisit.status == PatientStatus.lab)) {
+      actions.add(const SizedBox(height: 6));
+      actions.add(
+        ActionTile(
+          icon: Icons.edit_document,
+          title: 'Modifier la consultation',
+          subtitle: 'Revenir à l\'étape 3 pour corriger la consultation',
+          onTap: _openConsultationForm,
+        ),
       );
     }
 
-    if (latestVisit.status != PatientStatus.inConsultation) {
-      return ActionTile(
-        icon: Icons.play_arrow_rounded,
-        title: 'Démarrer la consultation',
-        subtitle: 'Fiche d\'observation & diagnostic (Étape 3)',
-        onTap: _openConsultationForm,
-      );
-    }
-
-    return ActionTile(
-      icon: Icons.assignment_rounded,
-      title: 'Rédiger la consultation',
-      subtitle: 'Saisir le rapport et l\'ordonnance (Étape 3)',
-      onTap: _openConsultationForm,
-    );
+    return actions;
   }
 
   IconData _timelineIcon(PatientTimelineItem item) {
@@ -856,10 +991,12 @@ class _PatientWorkflowStepper extends StatelessWidget {
   const _PatientWorkflowStepper({
     required this.status,
     required this.hasVitals,
+    this.onStepTapped,
   });
 
   final PatientStatus status;
   final bool hasVitals;
+  final void Function(int stepIndex)? onStepTapped;
 
   int get currentStep {
     if (status == PatientStatus.released) return 5;
@@ -924,89 +1061,104 @@ class _PatientWorkflowStepper extends StatelessWidget {
                 stepColor = Colors.grey[300]!;
               }
 
+              // Steps that are completed or active can be tapped
+              final isTappable =
+                  (isCompleted || isActive) && onStepTapped != null;
+
               return Expanded(
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        // Left connecting line
-                        Expanded(
-                          child: Container(
-                            height: 2,
-                            color: index == 0
-                                ? Colors.transparent
-                                : (index <= activeIndex
-                                      ? AppColors.medicalGreen
-                                      : Colors.grey[200]),
-                          ),
-                        ),
-                        // Circle Indicator
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? Colors.white
-                                : (isCompleted
-                                      ? AppColors.medicalGreen
-                                      : Colors.grey[50]),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: stepColor,
-                              width: isActive ? 2.5 : 1.5,
+                child: GestureDetector(
+                  onTap: isTappable ? () => onStepTapped!(index) : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          // Left connecting line
+                          Expanded(
+                            child: Container(
+                              height: 2,
+                              color: index == 0
+                                  ? Colors.transparent
+                                  : (index <= activeIndex
+                                        ? AppColors.medicalGreen
+                                        : Colors.grey[200]),
                             ),
-                            boxShadow: isActive
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.deepHealthBlue
-                                          .withValues(alpha: 0.15),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : null,
                           ),
-                          child: Icon(
-                            isCompleted ? Icons.check_rounded : step.icon,
-                            size: 14,
-                            color: isCompleted
-                                ? Colors.white
-                                : (isActive
-                                      ? AppColors.deepHealthBlue
-                                      : Colors.grey[400]),
+                          // Circle Indicator
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? Colors.white
+                                  : (isCompleted
+                                        ? AppColors.medicalGreen
+                                        : Colors.grey[50]),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: stepColor,
+                                width: isActive ? 2.5 : 1.5,
+                              ),
+                              boxShadow: isActive
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors.deepHealthBlue
+                                            .withValues(alpha: 0.15),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Icon(
+                              isCompleted ? Icons.check_rounded : step.icon,
+                              size: 14,
+                              color: isCompleted
+                                  ? Colors.white
+                                  : (isActive
+                                        ? AppColors.deepHealthBlue
+                                        : Colors.grey[400]),
+                            ),
                           ),
-                        ),
-                        // Right connecting line
-                        Expanded(
-                          child: Container(
-                            height: 2,
-                            color: index == steps.length - 1
-                                ? Colors.transparent
-                                : (index < activeIndex
-                                      ? AppColors.medicalGreen
-                                      : Colors.grey[200]),
+                          // Right connecting line
+                          Expanded(
+                            child: Container(
+                              height: 2,
+                              color: index == steps.length - 1
+                                  ? Colors.transparent
+                                  : (index < activeIndex
+                                        ? AppColors.medicalGreen
+                                        : Colors.grey[200]),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      step.title,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: isActive
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: isActive
-                            ? AppColors.deepHealthBlue
-                            : (isCompleted
-                                  ? AppColors.textPrimary
-                                  : Colors.grey[500]),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        step.title,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: isActive
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isActive
+                              ? AppColors.deepHealthBlue
+                              : (isCompleted
+                                    ? AppColors.textPrimary
+                                    : Colors.grey[500]),
+                          // Underline tappable steps to hint interactivity
+                          decoration: isTappable
+                              ? TextDecoration.underline
+                              : TextDecoration.none,
+                          decorationColor: isActive
+                              ? AppColors.deepHealthBlue
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),

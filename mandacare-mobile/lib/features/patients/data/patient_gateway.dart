@@ -71,6 +71,12 @@ abstract class PatientGateway {
     required String consultationId,
     required CreatePrescriptionPayload payload,
   });
+
+  Future<void> submitLabResults({
+    required AuthSession session,
+    required String visitId,
+    required CreateLabResultPayload payload,
+  });
 }
 
 class BackendPatientGateway implements PatientGateway {
@@ -250,6 +256,19 @@ class BackendPatientGateway implements PatientGateway {
       token: session.accessToken,
     );
   }
+
+  @override
+  Future<void> submitLabResults({
+    required AuthSession session,
+    required String visitId,
+    required CreateLabResultPayload payload,
+  }) async {
+    await apiClient.postJson(
+      '/visits/$visitId/lab-results',
+      payload.toJson(),
+      token: session.accessToken,
+    );
+  }
 }
 
 class CreatePatientPayload {
@@ -365,6 +384,35 @@ class CreateCashDeskPaymentPayload {
   Map<String, dynamic> toJson() {
     return {'amount': amount, 'mode': mode, 'reference': reference?.trim()}
       ..removeWhere((_, value) => value == null || value == '');
+  }
+}
+
+class CreateLabResultPayload {
+  const CreateLabResultPayload({
+    required this.examType,
+    required this.results,
+    this.observations,
+    this.sampleDate,
+    this.dossierNumber,
+    this.isNormal = false,
+  });
+
+  final String examType;
+  final String results;
+  final String? observations;
+  final DateTime? sampleDate;
+  final String? dossierNumber;
+  final bool isNormal;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'examType': examType,
+      'results': results,
+      'observations': observations?.trim(),
+      'sampleDate': sampleDate?.toIso8601String(),
+      'dossierNumber': dossierNumber?.trim(),
+      'isNormal': isNormal,
+    }..removeWhere((_, value) => value == null || value == '');
   }
 }
 
