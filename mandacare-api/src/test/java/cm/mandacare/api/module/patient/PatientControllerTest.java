@@ -934,6 +934,84 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.code").value("PATIENT_NOT_FOUND"));
     }
 
+    @Test
+    void returnsActiveExamsCatalog() throws Exception {
+        mockMvc.perform(get("/api/v1/exams")
+                        .with(user("doctor")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[?(@.code == 'NFS')].price").value(4000.0));
+    }
+
+    @Test
+    void performsDetailedBillingFlow() throws Exception {
+        // 1. Create Patient
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Billing", "Test", "+221 70 000 00 99")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String patientId = JsonPath.read(patientBody, "$.id");
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        // 2. Perform vitals entry
+        mockMvc.perform(post("/api/v1/visits/{id}/vitals", visitId)
+                        .with(user("nurse"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "temperature": 37.5,
+                                  "systolicPressure": 120,
+                                  "diastolicPressure": 80,
+                                  "pulse": 72
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        // 3. Consultation with decision SEND_TO_LAB and NFS exam (NFS UUID is 30000000-0000-0000-0000-000000000007)
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Fièvre, maux de tête",
+                                  "clinicalExam": "Examen normal",
+                                  "diagnosis": "Suspicion paludisme",
+                                  "decision": "SEND_TO_LAB",
+                                  "status": "VALIDATED",
+                                  "prescribedExams": ["30000000-0000-0000-0000-000000000007"]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        // 4. Preview invoice
+        mockMvc.perform(get("/api/v1/visits/{id}/invoice-preview", visitId)
+                        .with(user("cashier")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAmount").value(9000.0)) // 5000 (consultation) + 4000 (NFS)
+                .andExpect(jsonPath("$.items", hasSize(2)))
+                .andExpect(jsonPath("$.items[?(@.type == 'BENEFIT')].price").value(5000.0))
+                .andExpect(jsonPath("$.items[?(@.type == 'EXAM')].price").value(4000.0));
+
+        // 5. Complete payment (CASH, 9000 FCFA)
+        mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
+                        .with(user("cashier"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "amount": 9000,
+                                  "mode": "CASH",
+                                  "reference": "REC-DETAIL-001"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latestVisit.status").value("LAB"));
+    }
+
     private String validPatientJson(String firstName, String lastName, String phone) {
         return """
                 {
@@ -976,3 +1054,4 @@ class PatientControllerTest {
                 """;
     }
 }
+

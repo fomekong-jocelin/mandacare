@@ -30,7 +30,8 @@ class SecurityConfiguration {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/api/v1/consultations/*/prescription/pdf"
+                                "/api/v1/consultations/*/prescription/pdf",
+                                "/api/v1/visits/*/invoice/pdf"
                         )
                         .permitAll()
                         .anyRequest()

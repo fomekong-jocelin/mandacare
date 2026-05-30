@@ -6,6 +6,8 @@ import '../../consultations/domain/create_consultation_payload.dart';
 import '../../consultations/domain/prescription.dart';
 import '../../dashboard/domain/dashboard_today_summary.dart';
 import '../domain/patient_summary.dart';
+import '../../cashdesk/domain/invoice_preview.dart';
+import '../../consultations/domain/exam.dart';
 import '../domain/patient_timeline_item.dart';
 import '../domain/vitals_summary.dart';
 
@@ -85,6 +87,15 @@ abstract class PatientGateway {
     required AuthSession session,
     required String visitId,
     required CreateLabResultPayload payload,
+  });
+
+  Future<List<Exam>> listActiveExams({
+    required AuthSession session,
+  });
+
+  Future<InvoicePreview> getInvoicePreview({
+    required AuthSession session,
+    required String visitId,
   });
 }
 
@@ -295,6 +306,32 @@ class BackendPatientGateway implements PatientGateway {
       payload.toJson(),
       token: session.accessToken,
     );
+  }
+
+  @override
+  Future<List<Exam>> listActiveExams({
+    required AuthSession session,
+  }) async {
+    final response = await apiClient.getJsonList(
+      '/exams',
+      token: session.accessToken,
+    );
+    return response
+        .whereType<Map<String, dynamic>>()
+        .map(Exam.fromJson)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<InvoicePreview> getInvoicePreview({
+    required AuthSession session,
+    required String visitId,
+  }) async {
+    final response = await apiClient.getJson(
+      '/visits/$visitId/invoice-preview',
+      token: session.accessToken,
+    );
+    return InvoicePreview.fromJson(response);
   }
 }
 

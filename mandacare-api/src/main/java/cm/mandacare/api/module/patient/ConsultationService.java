@@ -1,6 +1,7 @@
 package cm.mandacare.api.module.patient;
 
 import cm.mandacare.api.common.error.BusinessException;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -13,17 +14,26 @@ class ConsultationService {
     private final ConsultationRepository consultations;
     private final ConsultationMapper mapper;
     private final AuditLogRepository auditLogs;
+    private final ExamRepository exams;
+    private final ExamRequestRepository examRequests;
+    private final ExamRequestNumberGenerator examRequestNumberGenerator;
 
     ConsultationService(
             VisitRepository visits,
             ConsultationRepository consultations,
             ConsultationMapper mapper,
-            AuditLogRepository auditLogs
+            AuditLogRepository auditLogs,
+            ExamRepository exams,
+            ExamRequestRepository examRequests,
+            ExamRequestNumberGenerator examRequestNumberGenerator
     ) {
         this.visits = visits;
         this.consultations = consultations;
         this.mapper = mapper;
         this.auditLogs = auditLogs;
+        this.exams = exams;
+        this.examRequests = examRequests;
+        this.examRequestNumberGenerator = examRequestNumberGenerator;
     }
 
     @Transactional
@@ -71,11 +81,29 @@ class ConsultationService {
 
         if (nextStatus == ConsultationStatus.VALIDATED) {
             visit.changeStatus(request.decision().visitStatus());
+            if (request.decision() == ConsultationDecision.SEND_TO_LAB && request.prescribedExams() != null && !request.prescribedExams().isEmpty()) {
+                createExamRequest(consultation, request.prescribedExams());
+            }
         } else {
             visit.markReadyForConsultation();
         }
 
         return mapper.toResponse(consultation, visit.status());
+    }
+
+    private void createExamRequest(ConsultationEntity consultation, List<UUID> examIds) {
+        ExamRequestEntity examRequest = ExamRequestEntity.create(
+                consultation.patient(),
+                consultation,
+                examRequestNumberGenerator.next(),
+                "NORMAL"
+        );
+        for (UUID examId : examIds) {
+            exams.findById(examId).ifPresent(exam -> {
+                examRequest.addLine(ExamRequestLineEntity.create(exam, exam.price(), null));
+            });
+        }
+        examRequests.save(examRequest);
     }
 
     private void validateFieldsForValidation(CreateConsultationRequest request) {

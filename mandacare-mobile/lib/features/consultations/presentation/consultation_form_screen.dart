@@ -11,6 +11,7 @@ import '../../patients/domain/patient_summary.dart';
 import '../../patients/domain/vitals_summary.dart';
 import '../domain/consultation_decision.dart';
 import '../domain/create_consultation_payload.dart';
+import '../domain/exam.dart';
 import '../domain/prescription.dart';
 import '../../../shared/presentation/widgets/compact_form_field.dart';
 import 'widgets/consultation_decision_selector.dart';
@@ -50,6 +51,10 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
   String? _originalStatus;
   final List<PrescriptionItem> _prescriptionItems = [];
   final List<_PrescriptionItemControllers> _prescriptionControllers = [];
+  List<Exam> _exams = [];
+  bool _loadingExams = false;
+  final Set<String> _selectedExamIds = {};
+  String _examSearchQuery = '';
 
   @override
   void initState() {
@@ -61,6 +66,24 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
       _ => ConsultationDecision.keepInConsultation,
     };
     _loadDraft();
+    _loadExams();
+  }
+
+  Future<void> _loadExams() async {
+    setState(() => _loadingExams = true);
+    try {
+      final list = await widget.patientGateway.listActiveExams(session: widget.session);
+      if (mounted) {
+        setState(() {
+          _exams = list;
+          _loadingExams = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingExams = false);
+      }
+    }
   }
 
   Future<void> _loadDraft() async {
@@ -419,6 +442,23 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
                             setState(() => _decision = decision);
                           },
                         ),
+                        if (_decision == ConsultationDecision.sendToLab) ...[
+                          const SizedBox(height: 18),
+                          Text(
+                            'Examens à prescrire',
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  color: AppColors.deepHealthBlue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (_loadingExams)
+                            const Center(child: CircularProgressIndicator())
+                          else if (_exams.isEmpty)
+                            const Text('Aucun examen disponible dans le catalogue.')
+                          else
+                            _buildExamsSelector(),
+                        ],
                       ],
                     ),
                   ],
@@ -630,6 +670,97 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
     }
   }
 
+  Widget _buildExamsSelector() {
+    final filtered = _exams.where((exam) {
+      if (_examSearchQuery.trim().isEmpty) return true;
+      return exam.name.toLowerCase().contains(_examSearchQuery.trim().toLowerCase()) ||
+          exam.code.toLowerCase().contains(_examSearchQuery.trim().toLowerCase()) ||
+          exam.category.toLowerCase().contains(_examSearchQuery.trim().toLowerCase());
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          key: const ValueKey('exam-search-field'),
+          decoration: InputDecoration(
+            hintText: 'Rechercher un examen (ex: NFS, Glycémie)',
+            prefixIcon: const Icon(Icons.search_rounded, size: 20),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+          ),
+          onChanged: (val) => setState(() => _examSearchQuery = val),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 200),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: filtered.length,
+            itemBuilder: (context, idx) {
+              final exam = filtered[idx];
+              final isSelected = _selectedExamIds.contains(exam.id);
+              return CheckboxListTile(
+                key: ValueKey('exam-tile-${exam.code}'),
+                controlAffinity: ListTileControlAffinity.leading,
+                value: isSelected,
+                title: Text(
+                  exam.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                subtitle: Text(
+                  '${exam.category} · ${exam.price.toStringAsFixed(0)} Frs',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                ),
+                onChanged: (val) {
+                  setState(() {
+                    if (val == true) {
+                      _selectedExamIds.add(exam.id);
+                    } else {
+                      _selectedExamIds.remove(exam.id);
+                    }
+                  });
+                },
+              );
+            },
+          ),
+        ),
+        if (_selectedExamIds.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _selectedExamIds.map((id) {
+              final exam = _exams.firstWhere((e) => e.id == id);
+              return Chip(
+                label: Text(
+                  exam.code,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                onDeleted: () {
+                  setState(() => _selectedExamIds.remove(id));
+                },
+                backgroundColor: AppColors.medicalGreen.withValues(alpha: 0.1),
+                deleteIconColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  side: const BorderSide(color: AppColors.medicalGreen, width: 0.5),
+                ),
+              );
+            }).toList(),
+          ),
+        ]
+      ],
+    );
+  }
+
   CreateConsultationPayload _payload({
     required bool isDraft,
     String? correctionMotif,
@@ -642,6 +773,9 @@ class _ConsultationFormScreenState extends State<ConsultationFormScreen> {
       decision: _decision,
       status: isDraft ? 'DRAFT' : 'VALIDATED',
       correctionMotif: correctionMotif,
+      prescribedExams: _decision == ConsultationDecision.sendToLab
+          ? _selectedExamIds.toList(growable: false)
+          : null,
     );
   }
 

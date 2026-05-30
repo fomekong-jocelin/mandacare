@@ -11,6 +11,8 @@ import 'package:mandacare_mobile/features/patients/data/patient_gateway.dart';
 import 'package:mandacare_mobile/features/patients/domain/patient_summary.dart';
 import 'package:mandacare_mobile/features/patients/domain/patient_timeline_item.dart';
 import 'package:mandacare_mobile/features/patients/domain/vitals_summary.dart';
+import 'package:mandacare_mobile/features/consultations/domain/exam.dart';
+import 'package:mandacare_mobile/features/cashdesk/domain/invoice_preview.dart';
 import 'package:mandacare_mobile/app/mandacare_app.dart';
 
 void main() {
@@ -841,6 +843,48 @@ class FakePatientGateway implements PatientGateway {
   }) async {
     _labResultsByVisit[visitId] = payload;
     _visitStatuses[visitId] = PatientStatus.inConsultation;
+  }
+
+  @override
+  Future<List<Exam>> listActiveExams({
+    required AuthSession session,
+  }) async {
+    return const [
+      Exam(
+        id: '30000000-0000-0000-0000-000000000007',
+        code: 'NFS',
+        name: 'NFS',
+        category: 'HEMATOLOGIE',
+        price: 4000.0,
+        active: true,
+      ),
+    ];
+  }
+
+  @override
+  Future<InvoicePreview> getInvoicePreview({
+    required AuthSession session,
+    required String visitId,
+  }) async {
+    return const InvoicePreview(
+      totalAmount: 9000.0,
+      discount: 0.0,
+      netAmount: 9000.0,
+      items: [
+        InvoiceLine(
+          type: 'BENEFIT',
+          label: 'Consultation médicale',
+          price: 5000.0,
+          quantity: 1,
+        ),
+        InvoiceLine(
+          type: 'EXAM',
+          label: 'NFS',
+          price: 4000.0,
+          quantity: 1,
+        ),
+      ],
+    );
   }
 
   PatientStatus? statusFor(String visitId) => _visitStatuses[visitId];

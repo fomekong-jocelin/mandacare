@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/layout/adaptive_layout.dart';
@@ -135,6 +136,9 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
       context,
       patientName: item.patient.fullName,
       targetLabel: _targetLabel(item.targetStatus),
+      patientGateway: widget.patientGateway,
+      session: widget.session,
+      visitId: visitId,
     );
     if (payload == null) {
       return;
@@ -159,6 +163,65 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
       widget.onQueueChanged?.call();
       _showMessage(
         'Paiement validé - orientation ${_targetLabel(updatedPatient.status)}.',
+      );
+
+      final relativeUrl = '/visits/$visitId/invoice/pdf';
+      final baseUrlString = widget.patientGateway is BackendPatientGateway
+          ? (widget.patientGateway as BackendPatientGateway).apiClient.baseUrl
+          : "http://localhost:8080/api/v1";
+      final fullUrl = '$baseUrlString$relativeUrl';
+
+      if (!mounted) return;
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Paiement validé !'),
+            content: const Text(
+              'Le reçu de paiement a été généré avec succès. Souhaitez-vous le prévisualiser et l\'imprimer ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Plus tard'),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  Navigator.of(dialogContext).pop();
+                  final url = Uri.parse(fullUrl);
+                  try {
+                    final success = await launchUrl(
+                      url,
+                      mode: LaunchMode.externalApplication,
+                    );
+                    if (!success) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Impossible d\'ouvrir le PDF.'),
+                        ),
+                      );
+                    }
+                  } catch (_) {
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Impossible d\'ouvrir le PDF.'),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.print_rounded),
+                label: const Text('Imprimer'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.medicalGreen,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
       );
     } catch (_) {
       if (!mounted) {

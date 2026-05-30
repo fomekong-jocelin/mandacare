@@ -13,9 +13,13 @@ import org.springframework.web.bind.annotation.RestController;
 class VisitController {
 
     private final VisitService service;
+    private final InvoiceRepository invoiceRepository;
+    private final InvoicePdfService invoicePdfService;
 
-    VisitController(VisitService service) {
+    VisitController(VisitService service, InvoiceRepository invoiceRepository, InvoicePdfService invoicePdfService) {
         this.service = service;
+        this.invoiceRepository = invoiceRepository;
+        this.invoicePdfService = invoicePdfService;
     }
 
     @PatchMapping("/{id}/status")
@@ -33,4 +37,32 @@ class VisitController {
     ) {
         return service.completeCashDesk(id, request);
     }
+
+    @org.springframework.web.bind.annotation.GetMapping("/{id}/invoice-preview")
+    InvoicePreviewResponse getInvoicePreview(@PathVariable UUID id) {
+        return service.getInvoicePreview(id);
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/{id}/invoice/pdf")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    org.springframework.http.ResponseEntity<byte[]> getInvoicePdf(@PathVariable UUID id) {
+        InvoiceEntity invoice = invoiceRepository.findByVisitId(id)
+                .orElseThrow(() -> new cm.mandacare.api.common.error.BusinessException(
+                        "INVOICE_NOT_FOUND",
+                        "Facture introuvable pour cette visite.",
+                        org.springframework.http.HttpStatus.NOT_FOUND
+                ));
+
+        byte[] pdfBytes = invoicePdfService.generatePdf(invoice);
+
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("inline", "facture-" + invoice.invoiceNumber() + ".pdf");
+        headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+        return org.springframework.http.ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
 }
+

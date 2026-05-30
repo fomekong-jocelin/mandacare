@@ -9,6 +9,7 @@ class CreateConsultationPayload {
     required this.decision,
     required this.status,
     this.correctionMotif,
+    this.prescribedExams,
   });
 
   final String symptoms;
@@ -18,6 +19,7 @@ class CreateConsultationPayload {
   final ConsultationDecision decision;
   final String status;
   final String? correctionMotif;
+  final List<String>? prescribedExams;
 
   Map<String, dynamic> toJson() {
     return {
@@ -28,6 +30,7 @@ class CreateConsultationPayload {
       'decision': decision.apiValue,
       'status': status,
       'correctionMotif': correctionMotif?.trim(),
+      'prescribedExams': prescribedExams,
     }..removeWhere((_, value) => value == null);
   }
 }

@@ -4,10 +4,16 @@ import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/widgets/compact_form_field.dart';
 import '../../patients/data/patient_gateway.dart';
 
+import '../../auth/domain/auth_session.dart';
+import '../domain/invoice_preview.dart';
+
 Future<CreateCashDeskPaymentPayload?> showCashDeskPaymentSheet(
   BuildContext context, {
   required String patientName,
   required String targetLabel,
+  required PatientGateway patientGateway,
+  required AuthSession session,
+  required String visitId,
 }) {
   return showModalBottomSheet<CreateCashDeskPaymentPayload>(
     context: context,
@@ -17,6 +23,9 @@ Future<CreateCashDeskPaymentPayload?> showCashDeskPaymentSheet(
       return _CashDeskPaymentSheet(
         patientName: patientName,
         targetLabel: targetLabel,
+        patientGateway: patientGateway,
+        session: session,
+        visitId: visitId,
       );
     },
   );
@@ -26,10 +35,16 @@ class _CashDeskPaymentSheet extends StatefulWidget {
   const _CashDeskPaymentSheet({
     required this.patientName,
     required this.targetLabel,
+    required this.patientGateway,
+    required this.session,
+    required this.visitId,
   });
 
   final String patientName;
   final String targetLabel;
+  final PatientGateway patientGateway;
+  final AuthSession session;
+  final String visitId;
 
   @override
   State<_CashDeskPaymentSheet> createState() => _CashDeskPaymentSheetState();
@@ -40,6 +55,45 @@ class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
   final _amountController = TextEditingController();
   final _referenceController = TextEditingController();
   _PaymentModeOption _mode = _PaymentModeOption.cash;
+
+  InvoicePreview? _preview;
+  bool _loadingPreview = true;
+  String? _previewError;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPreview();
+  }
+
+  Future<void> _fetchPreview() async {
+    setState(() {
+      _loadingPreview = true;
+      _previewError = null;
+    });
+    try {
+      final preview = await widget.patientGateway.getInvoicePreview(
+        session: widget.session,
+        visitId: widget.visitId,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _preview = preview;
+        _loadingPreview = false;
+        _amountController.text = preview.netAmount.toInt().toString();
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loadingPreview = false;
+        _previewError = 'Impossible de récupérer la facture de soins.';
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -61,107 +115,238 @@ class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
         ),
         child: SafeArea(
           top: false,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.border,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: AppColors.premiumGold.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.payments_rounded,
-                        color: AppColors.premiumGold,
-                      ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppColors.premiumGold.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.patientName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  color: AppColors.deepHealthBlue,
-                                  fontWeight: FontWeight.w700,
+                    child: const Icon(
+                      Icons.payments_rounded,
+                      color: AppColors.premiumGold,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.patientName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: AppColors.deepHealthBlue,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Orientation ${widget.targetLabel}',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              if (_loadingPreview)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 36),
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_previewError != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          color: AppColors.warning,
+                          size: 32,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _previewError!,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: _fetchPreview,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Réessayer'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else ...[
+                Text(
+                  'Détail des prestations',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: AppColors.deepHealthBlue,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.border.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.border.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      for (final item in _preview!.items) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              Icon(
+                                item.type == 'EXAM'
+                                    ? Icons.science_rounded
+                                    : Icons.medical_services_rounded,
+                                size: 16,
+                                color: item.type == 'EXAM'
+                                    ? Colors.purple
+                                    : AppColors.deepHealthBlue,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  item.label,
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                 ),
+                              ),
+                              Text(
+                                '${item.quantity} x ${item.price.toInt()} Frs',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Orientation ${widget.targetLabel}',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                        if (item != _preview!.items.last)
+                          Divider(
+                            height: 1,
+                            color: AppColors.border.withValues(alpha: 0.25),
                           ),
-                        ],
-                      ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.medicalGreen.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.medicalGreen.withValues(alpha: 0.15),
                     ),
-                  ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total net à payer :',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.medicalGreen,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      Text(
+                        '${_preview!.netAmount.toInt()} Frs',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: AppColors.medicalGreen,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 18),
-                CompactTextFormField(
-                  key: const ValueKey('cashdesk-payment-amount'),
-                  controller: _amountController,
-                  label: 'Montant encaissé',
-                  icon: Icons.payments_rounded,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  helperText: 'Montant payé par le patient',
-                  validator: _amountValidator,
-                ),
-                const SizedBox(height: 12),
-                CompactDropdownField(
-                  label: 'Mode de paiement',
-                  value: _mode.label,
-                  items: _PaymentModeOption.labels,
-                  icon: Icons.account_balance_wallet_rounded,
-                  onChanged: (value) {
-                    setState(() => _mode = _PaymentModeOption.fromLabel(value));
-                  },
-                ),
-                const SizedBox(height: 12),
-                CompactTextFormField(
-                  key: const ValueKey('cashdesk-payment-reference'),
-                  controller: _referenceController,
-                  label: 'Référence / reçu',
-                  icon: Icons.confirmation_number_rounded,
-                  textInputAction: TextInputAction.done,
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  key: const ValueKey('cashdesk-payment-submit'),
-                  onPressed: _submit,
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('Encaisser et orienter'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    backgroundColor: AppColors.medicalGreen,
-                    foregroundColor: Colors.white,
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      CompactTextFormField(
+                        key: const ValueKey('cashdesk-payment-amount'),
+                        controller: _amountController,
+                        label: 'Montant encaissé',
+                        icon: Icons.payments_rounded,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        helperText: 'Montant payé par le patient (pré-rempli)',
+                        validator: _amountValidator,
+                      ),
+                      const SizedBox(height: 12),
+                      CompactDropdownField(
+                        label: 'Mode de paiement',
+                        value: _mode.label,
+                        items: _PaymentModeOption.labels,
+                        icon: Icons.account_balance_wallet_rounded,
+                        onChanged: (value) {
+                          setState(() => _mode = _PaymentModeOption.fromLabel(value));
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      CompactTextFormField(
+                        key: const ValueKey('cashdesk-payment-reference'),
+                        controller: _referenceController,
+                        label: 'Référence / reçu',
+                        icon: Icons.confirmation_number_rounded,
+                        textInputAction: TextInputAction.done,
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        key: const ValueKey('cashdesk-payment-submit'),
+                        onPressed: _submit,
+                        icon: const Icon(Icons.check_rounded),
+                        label: const Text('Encaisser et orienter'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: AppColors.medicalGreen,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
+            ],
           ),
         ),
       ),

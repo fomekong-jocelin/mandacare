@@ -417,6 +417,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       targetLabel: _statusAfterCashDesk == PatientStatus.lab
           ? 'vers labo'
           : 'vers sortie',
+      patientGateway: widget.patientGateway,
+      session: widget.session,
+      visitId: latestVisit.visitId,
     );
     if (payload == null) {
       return;
@@ -431,6 +434,65 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       if (mounted) {
         await _loadTimeline();
       }
+
+      final relativeUrl = '/visits/${latestVisit.visitId}/invoice/pdf';
+      final baseUrlString = widget.patientGateway is BackendPatientGateway
+          ? (widget.patientGateway as BackendPatientGateway).apiClient.baseUrl
+          : "http://localhost:8080/api/v1";
+      final fullUrl = '$baseUrlString$relativeUrl';
+
+      if (!mounted) return;
+
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Paiement validé !'),
+            content: const Text(
+              'Le reçu de paiement a été généré avec succès. Souhaitez-vous le prévisualiser et l\'imprimer ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Plus tard'),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  Navigator.of(dialogContext).pop();
+                  final url = Uri.parse(fullUrl);
+                  try {
+                    final success = await launchUrl(
+                      url,
+                      mode: LaunchMode.externalApplication,
+                    );
+                    if (!success) {
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Impossible d\'ouvrir le PDF.'),
+                        ),
+                      );
+                    }
+                  } catch (_) {
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('Impossible d\'ouvrir le PDF.'),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.print_rounded),
+                label: const Text('Imprimer'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.medicalGreen,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
+      );
     } catch (_) {
       _showMessage('Impossible de valider le passage en caisse.');
     }
