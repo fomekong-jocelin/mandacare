@@ -257,8 +257,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-more')));
     await tester.pumpAndSettle();
-    expect(find.text('Modules, équipe et paramètres'), findsOneWidget);
+    expect(find.text('Compte, modules et paramètres'), findsOneWidget);
+    expect(find.text('Dr Manda'), findsWidgets);
     expect(find.text('Stock pharmacie'), findsOneWidget);
+    expect(find.text('Module non raccordé'), findsWidgets);
   });
 
   testWidgets('saves a consultation and applies the decision', (tester) async {

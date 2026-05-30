@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../app/api/api_exception.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/layout/adaptive_layout.dart';
-import '../../../shared/presentation/widgets/action_tile.dart';
 import '../../../shared/presentation/widgets/feature_header.dart';
 import '../../../shared/presentation/widgets/metric_strip.dart';
 import '../../auth/domain/auth_session.dart';
@@ -156,20 +155,6 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
           const SizedBox(height: 10),
         ],
       ],
-      const SizedBox(height: 8),
-      const _SectionTitle(title: 'Actions rapides'),
-      const SizedBox(height: 10),
-      const ActionTile(
-        icon: Icons.assignment_rounded,
-        title: 'Compte rendu',
-        subtitle: 'Finaliser une observation médicale',
-      ),
-      const SizedBox(height: 10),
-      const ActionTile(
-        icon: Icons.medication_rounded,
-        title: 'Ordonnance',
-        subtitle: 'Préparer une prescription',
-      ),
     ];
   }
 

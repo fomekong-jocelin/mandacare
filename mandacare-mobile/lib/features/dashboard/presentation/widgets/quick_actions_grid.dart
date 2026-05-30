@@ -49,8 +49,8 @@ class QuickActionsGrid extends StatelessWidget {
         onTap: () => onOpenPatients(PatientFilter.waiting),
       ),
       QuickActionTile(
-        icon: Icons.receipt_long_rounded,
-        label: 'Ordonnance',
+        icon: Icons.medical_services_rounded,
+        label: 'Consultation',
         onTap: onOpenConsultations,
       ),
       QuickActionTile(

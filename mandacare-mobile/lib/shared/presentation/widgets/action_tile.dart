@@ -23,6 +23,9 @@ class ActionTile extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < 260;
+        final content = narrow
+            ? _CompactActionContent(tile: this)
+            : _WideActionContent(tile: this);
         return Material(
           color: AppColors.card,
           borderRadius: BorderRadius.circular(12),
@@ -44,9 +47,7 @@ class ActionTile extends StatelessWidget {
                   ),
                 ],
               ),
-              child: narrow
-                  ? _CompactActionContent(tile: this)
-                  : _WideActionContent(tile: this),
+              child: content,
             ),
           ),
         );
@@ -62,6 +63,10 @@ class _WideActionContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final trailing =
+        tile.trailing ??
+        (tile.onTap == null ? null : const Icon(Icons.chevron_right_rounded));
+
     return Row(
       children: [
         _ActionIcon(icon: tile.icon),
@@ -69,8 +74,7 @@ class _WideActionContent extends StatelessWidget {
         Expanded(
           child: _ActionText(title: tile.title, subtitle: tile.subtitle),
         ),
-        const SizedBox(width: 8),
-        tile.trailing ?? const Icon(Icons.chevron_right_rounded),
+        if (trailing != null) ...[const SizedBox(width: 8), trailing],
       ],
     );
   }
@@ -83,6 +87,10 @@ class _CompactActionContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final trailing =
+        tile.trailing ??
+        (tile.onTap == null ? null : const Icon(Icons.chevron_right_rounded));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -90,7 +98,7 @@ class _CompactActionContent extends StatelessWidget {
           children: [
             _ActionIcon(icon: tile.icon),
             const Spacer(),
-            tile.trailing ?? const Icon(Icons.chevron_right_rounded),
+            ?trailing,
           ],
         ),
         const Spacer(),

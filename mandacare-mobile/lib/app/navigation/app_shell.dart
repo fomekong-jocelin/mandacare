@@ -66,7 +66,10 @@ class _AppShellState extends State<AppShell> {
           refreshRequestId: _cashDeskRefreshRequestId,
           onQueueChanged: _requestDashboardRefresh,
         ),
-        const MoreScreen(),
+        MoreScreen(
+          connectedUserName: widget.session.displayName,
+          username: widget.session.username,
+        ),
       ],
     );
 

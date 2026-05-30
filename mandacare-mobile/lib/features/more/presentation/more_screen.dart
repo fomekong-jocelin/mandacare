@@ -4,10 +4,16 @@ import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/layout/adaptive_layout.dart';
 import '../../../shared/presentation/widgets/action_tile.dart';
 import '../../../shared/presentation/widgets/feature_header.dart';
-import '../../../shared/presentation/widgets/metric_strip.dart';
 
 class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key});
+  const MoreScreen({
+    required this.connectedUserName,
+    required this.username,
+    super.key,
+  });
+
+  final String connectedUserName;
+  final String username;
 
   @override
   Widget build(BuildContext context) {
@@ -15,8 +21,8 @@ class MoreScreen extends StatelessWidget {
       child: Column(
         children: [
           FeatureHeader(
-            title: 'Plus',
-            subtitle: 'Modules, équipe et paramètres',
+            title: 'Administration',
+            subtitle: 'Compte, modules et paramètres',
             actionIcon: Icons.settings_rounded,
             actionTooltip: 'Paramètres',
             onActionPressed: () {},
@@ -32,61 +38,49 @@ class MoreScreen extends StatelessWidget {
                     AdaptiveLayout.bottomContentPadding(context),
                   ),
                   sliver: SliverList.list(
-                    children: const [
-                      _ProfileCard(),
-                      SizedBox(height: 14),
-                      MetricStrip(
-                        items: [
-                          MetricStripItem(
-                            value: '6',
-                            label: 'membres',
-                            color: AppColors.deepHealthBlue,
-                          ),
-                          MetricStripItem(
-                            value: '3',
-                            label: 'stocks bas',
-                            color: AppColors.warning,
-                          ),
-                          MetricStripItem(
-                            value: '24',
-                            label: 'alertes',
-                            color: AppColors.medicalGreen,
-                          ),
-                        ],
+                    children: [
+                      _ProfileCard(
+                        connectedUserName: connectedUserName,
+                        username: username,
                       ),
-                      SizedBox(height: 18),
-                      _SectionTitle(title: 'Gestion'),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 18),
+                      const _SectionTitle(title: 'Gestion'),
+                      const SizedBox(height: 10),
                       ActionTile(
                         icon: Icons.local_pharmacy_rounded,
                         title: 'Stock pharmacie',
-                        subtitle: 'Médicaments, alertes et inventaire',
+                        subtitle: 'Module non raccordé',
+                        trailing: _UnavailableBadge(),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       ActionTile(
                         icon: Icons.analytics_rounded,
                         title: 'Rapports',
-                        subtitle: 'Activité, recettes et fréquentation',
+                        subtitle: 'Module non raccordé',
+                        trailing: _UnavailableBadge(),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       ActionTile(
                         icon: Icons.groups_rounded,
                         title: 'Équipe',
-                        subtitle: 'Rôles, accès et permissions',
+                        subtitle: 'Module non raccordé',
+                        trailing: _UnavailableBadge(),
                       ),
-                      SizedBox(height: 18),
-                      _SectionTitle(title: 'Configuration'),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 18),
+                      const _SectionTitle(title: 'Configuration'),
+                      const SizedBox(height: 10),
                       ActionTile(
                         icon: Icons.business_rounded,
                         title: 'Clinique',
-                        subtitle: 'Identité, horaires et services',
+                        subtitle: 'Module non raccordé',
+                        trailing: _UnavailableBadge(),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
                       ActionTile(
                         icon: Icons.help_outline_rounded,
                         title: 'Support',
-                        subtitle: 'Assistance et documentation',
+                        subtitle: 'Module non raccordé',
+                        trailing: _UnavailableBadge(),
                       ),
                     ],
                   ),
@@ -101,10 +95,21 @@ class MoreScreen extends StatelessWidget {
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard();
+  const _ProfileCard({required this.connectedUserName, required this.username});
+
+  final String connectedUserName;
+  final String username;
 
   @override
   Widget build(BuildContext context) {
+    final initials = connectedUserName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part[0].toUpperCase())
+        .join();
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -120,16 +125,10 @@ class _ProfileCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 27,
             backgroundColor: Colors.white,
-            child: Text(
-              'DM',
-              style: TextStyle(
-                color: AppColors.deepHealthBlue,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            child: _ProfileInitials(initials: initials),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -137,7 +136,7 @@ class _ProfileCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dr Manda',
+                  connectedUserName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -147,7 +146,7 @@ class _ProfileCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Administrateur · MandaCare',
+                  username,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -159,6 +158,45 @@ class _ProfileCard extends StatelessWidget {
           ),
           const Icon(Icons.verified_rounded, color: AppColors.premiumGold),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfileInitials extends StatelessWidget {
+  const _ProfileInitials({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      initials.isEmpty ? 'U' : initials,
+      style: const TextStyle(
+        color: AppColors.deepHealthBlue,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+}
+
+class _UnavailableBadge extends StatelessWidget {
+  const _UnavailableBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.textSecondary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'À raccorder',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
