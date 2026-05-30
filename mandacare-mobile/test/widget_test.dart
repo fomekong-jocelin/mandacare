@@ -228,8 +228,8 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-cashDesk')));
     await tester.pumpAndSettle();
-    expect(find.text('Encaissements et reçus'), findsOneWidget);
-    expect(find.text('185 000'), findsOneWidget);
+    expect(find.text('Patients à encaisser'), findsOneWidget);
+    expect(find.text('Aucun passage en caisse'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-more')));
     await tester.pumpAndSettle();
@@ -330,9 +330,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Caisse'), findsWidgets);
-    expect(find.text('Encaisser'), findsOneWidget);
-    expect(find.text('Paiement patient'), findsOneWidget);
+    expect(find.text('Patients à encaisser'), findsOneWidget);
+    expect(find.text('Aucun passage en caisse'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('cash desk validates payment and routes patient to lab', (
+    tester,
+  ) async {
+    final patientGateway = FakePatientGateway();
+    const visitId = '10000000-0000-0000-0000-000000000002';
+
+    await patientGateway.createConsultation(
+      session: session,
+      visitId: visitId,
+      payload: const CreateConsultationPayload(
+        symptoms: 'Fièvre persistante',
+        clinicalExam: 'Patient fébrile',
+        diagnosis: 'Bilan infectieux',
+        advice: 'NFS et CRP',
+        decision: ConsultationDecision.sendToLab,
+        status: 'VALIDATED',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MandaCareApp(initialSession: session, patientGateway: patientGateway),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-cashDesk')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mamadou Sarr'), findsOneWidget);
+    expect(find.textContaining('vers labo'), findsWidgets);
+
+    await tester.tap(find.byKey(const ValueKey('cashdesk-complete-$visitId')));
+    await tester.pumpAndSettle();
+
+    expect(patientGateway.statusFor(visitId), PatientStatus.lab);
+    expect(find.text('Mamadou Sarr'), findsNothing);
   });
 }
 
@@ -420,6 +457,19 @@ class FakePatientGateway implements PatientGateway {
     required PatientStatus status,
   }) async {
     _visitStatuses[visitId] = status;
+  }
+
+  @override
+  Future<PatientSummary> completeCashDesk({
+    required AuthSession session,
+    required String visitId,
+  }) async {
+    _visitStatuses[visitId] =
+        _consultationDecisions[visitId] == ConsultationDecision.sendToLab
+        ? PatientStatus.lab
+        : PatientStatus.released;
+    final patient = _patients.firstWhere((p) => p.latestVisitId == visitId);
+    return _withCurrentStatus(patient);
   }
 
   @override

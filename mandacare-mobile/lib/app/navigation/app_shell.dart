@@ -31,6 +31,7 @@ class _AppShellState extends State<AppShell> {
   int _dashboardRefreshRequestId = 0;
   int _patientFilterRequestId = 0;
   int _consultationRefreshRequestId = 0;
+  int _cashDeskRefreshRequestId = 0;
   PatientFilter _requestedPatientFilter = PatientFilter.all;
 
   @override
@@ -59,7 +60,12 @@ class _AppShellState extends State<AppShell> {
           patientGateway: widget.patientGateway,
           refreshRequestId: _consultationRefreshRequestId,
         ),
-        const CashDeskScreen(),
+        CashDeskScreen(
+          session: widget.session,
+          patientGateway: widget.patientGateway,
+          refreshRequestId: _cashDeskRefreshRequestId,
+          onQueueChanged: _requestDashboardRefresh,
+        ),
         const MoreScreen(),
       ],
     );
@@ -105,6 +111,9 @@ class _AppShellState extends State<AppShell> {
       }
       if (index == AppTab.consultations.index) {
         _consultationRefreshRequestId++;
+      }
+      if (index == AppTab.cashDesk.index) {
+        _cashDeskRefreshRequestId++;
       }
     });
   }

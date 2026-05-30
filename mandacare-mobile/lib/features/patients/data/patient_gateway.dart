@@ -33,6 +33,11 @@ abstract class PatientGateway {
     required PatientStatus status,
   });
 
+  Future<PatientSummary> completeCashDesk({
+    required AuthSession session,
+    required String visitId,
+  });
+
   Future<void> createVitals({
     required AuthSession session,
     required String visitId,
@@ -143,6 +148,19 @@ class BackendPatientGateway implements PatientGateway {
     await apiClient.patchJson('/visits/$visitId/status', {
       'status': status.apiValue,
     }, token: session.accessToken);
+  }
+
+  @override
+  Future<PatientSummary> completeCashDesk({
+    required AuthSession session,
+    required String visitId,
+  }) async {
+    final response = await apiClient.patchJson(
+      '/visits/$visitId/cash-desk/complete',
+      const <String, dynamic>{},
+      token: session.accessToken,
+    );
+    return _PatientSummaryMapper.fromJson(response);
   }
 
   @override

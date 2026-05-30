@@ -14,4 +14,12 @@ public enum ConsultationDecision {
     VisitStatus visitStatus() {
         return visitStatus;
     }
+
+    VisitStatus statusAfterCashDesk() {
+        return switch (this) {
+            case SEND_TO_LAB -> VisitStatus.LAB;
+            case RELEASE_PATIENT -> VisitStatus.RELEASED;
+            case KEEP_IN_CONSULTATION -> VisitStatus.IN_CONSULTATION;
+        };
+    }
 }

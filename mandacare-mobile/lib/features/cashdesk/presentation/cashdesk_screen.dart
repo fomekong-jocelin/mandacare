@@ -5,9 +5,170 @@ import '../../../shared/presentation/layout/adaptive_layout.dart';
 import '../../../shared/presentation/widgets/action_tile.dart';
 import '../../../shared/presentation/widgets/feature_header.dart';
 import '../../../shared/presentation/widgets/metric_strip.dart';
+import '../../auth/domain/auth_session.dart';
+import '../../consultations/domain/consultation_decision.dart';
+import '../../patients/data/patient_gateway.dart';
+import '../../patients/domain/patient_summary.dart';
+import '../../patients/presentation/patient_detail_screen.dart';
 
-class CashDeskScreen extends StatelessWidget {
-  const CashDeskScreen({super.key});
+class CashDeskScreen extends StatefulWidget {
+  const CashDeskScreen({
+    required this.session,
+    required this.patientGateway,
+    this.refreshRequestId = 0,
+    this.onQueueChanged,
+    super.key,
+  });
+
+  final AuthSession session;
+  final PatientGateway patientGateway;
+  final int refreshRequestId;
+  final VoidCallback? onQueueChanged;
+
+  @override
+  State<CashDeskScreen> createState() => _CashDeskScreenState();
+}
+
+class _CashDeskScreenState extends State<CashDeskScreen> {
+  List<_CashDeskPatient> _patients = const [];
+  bool _loading = true;
+  String? _error;
+  String? _completingVisitId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCashDeskQueue();
+  }
+
+  @override
+  void didUpdateWidget(covariant CashDeskScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshRequestId != oldWidget.refreshRequestId) {
+      _loadCashDeskQueue(showLoader: false);
+    }
+  }
+
+  Future<void> _loadCashDeskQueue({bool showLoader = true}) async {
+    if (showLoader) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final queue = await widget.patientGateway.listTodayQueue(
+        session: widget.session,
+      );
+      final cashDeskPatients = queue
+          .where((patient) => patient.status == PatientStatus.cashDesk)
+          .toList(growable: false);
+      final enrichedPatients = await Future.wait(
+        cashDeskPatients.map(_withConsultationDecision),
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _patients = enrichedPatients;
+        _loading = false;
+        _error = null;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error = 'Impossible de charger les patients en caisse.';
+      });
+    }
+  }
+
+  Future<_CashDeskPatient> _withConsultationDecision(
+    PatientSummary patient,
+  ) async {
+    final patientId = patient.id;
+    if (patientId == null) {
+      return _CashDeskPatient(patient: patient);
+    }
+
+    try {
+      final timeline = await widget.patientGateway.getPatientTimeline(
+        session: widget.session,
+        patientId: patientId,
+      );
+      return _CashDeskPatient(
+        patient: patient,
+        decision: timeline.isEmpty
+            ? null
+            : timeline.first.consultation?.decision,
+      );
+    } catch (_) {
+      return _CashDeskPatient(patient: patient);
+    }
+  }
+
+  Future<void> _openPatientDetail(PatientSummary patient) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => PatientDetailScreen(
+          session: widget.session,
+          patientGateway: widget.patientGateway,
+          patient: patient,
+        ),
+      ),
+    );
+    if (changed == true) {
+      widget.onQueueChanged?.call();
+      await _loadCashDeskQueue(showLoader: false);
+    }
+  }
+
+  Future<void> _completePayment(_CashDeskPatient item) async {
+    final visitId = item.patient.latestVisitId;
+    if (visitId == null) {
+      _showMessage('Visite non synchronisée avec le serveur.');
+      return;
+    }
+
+    setState(() => _completingVisitId = visitId);
+    try {
+      final updatedPatient = await widget.patientGateway.completeCashDesk(
+        session: widget.session,
+        visitId: visitId,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _patients = _patients
+            .where((patient) => patient.patient.latestVisitId != visitId)
+            .toList(growable: false);
+        _completingVisitId = null;
+      });
+      widget.onQueueChanged?.call();
+      _showMessage(
+        'Paiement validé - orientation ${_targetLabel(updatedPatient.status)}.',
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _completingVisitId = null);
+      _showMessage('Impossible de valider le paiement.');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,78 +177,72 @@ class CashDeskScreen extends StatelessWidget {
         children: [
           FeatureHeader(
             title: 'Caisse',
-            subtitle: 'Encaissements et reçus',
-            actionIcon: Icons.add_card_rounded,
-            actionTooltip: 'Nouvel encaissement',
-            onActionPressed: () {},
+            subtitle: 'Patients à encaisser',
+            actionIcon: Icons.refresh_rounded,
+            actionTooltip: 'Actualiser',
+            onActionPressed: () => _loadCashDeskQueue(showLoader: false),
           ),
           Expanded(
-            child: CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    14,
-                    16,
-                    AdaptiveLayout.bottomContentPadding(context),
+            child: RefreshIndicator(
+              onRefresh: () => _loadCashDeskQueue(showLoader: false),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      14,
+                      16,
+                      AdaptiveLayout.bottomContentPadding(context),
+                    ),
+                    sliver: SliverList.list(
+                      children: [
+                        _CashDeskSummaryCard(patients: _patients),
+                        const SizedBox(height: 12),
+                        _CashDeskMetrics(patients: _patients),
+                        const SizedBox(height: 18),
+                        const _SectionTitle(title: 'À encaisser'),
+                        const SizedBox(height: 10),
+                        if (_loading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 28),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_error != null)
+                          _CashDeskMessage(
+                            icon: Icons.cloud_off_rounded,
+                            title: 'Caisse indisponible',
+                            message: _error!,
+                            action: TextButton.icon(
+                              onPressed: _loadCashDeskQueue,
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Réessayer'),
+                            ),
+                          )
+                        else if (_patients.isEmpty)
+                          const _CashDeskMessage(
+                            icon: Icons.price_check_rounded,
+                            title: 'Aucun passage en caisse',
+                            message:
+                                'Les patients envoyés à la caisse apparaîtront ici.',
+                          )
+                        else
+                          for (final item in _patients) ...[
+                            _CashDeskPatientTile(
+                              item: item,
+                              completing:
+                                  _completingVisitId ==
+                                  item.patient.latestVisitId,
+                              onOpen: () => _openPatientDetail(item.patient),
+                              onComplete: () => _completePayment(item),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                      ],
+                    ),
                   ),
-                  sliver: SliverList.list(
-                    children: const [
-                      _RevenueCard(),
-                      SizedBox(height: 14),
-                      MetricStrip(
-                        items: [
-                          MetricStripItem(
-                            value: '12',
-                            label: 'reçus',
-                            color: AppColors.deepHealthBlue,
-                          ),
-                          MetricStripItem(
-                            value: '42K',
-                            label: 'reste dû',
-                            color: AppColors.warning,
-                          ),
-                          MetricStripItem(
-                            value: '98%',
-                            label: 'traçabilité',
-                            color: AppColors.medicalGreen,
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 18),
-                      _SectionTitle(title: 'Actions rapides'),
-                      SizedBox(height: 10),
-                      _QuickCashGrid(),
-                      SizedBox(height: 18),
-                      _SectionTitle(title: 'Dernières opérations'),
-                      SizedBox(height: 10),
-                      _TransactionTile(
-                        patient: 'Awa Diop',
-                        label: 'Consultation + échographie',
-                        amount: '35 000 FCFA',
-                        time: '09:02',
-                        paid: true,
-                      ),
-                      SizedBox(height: 10),
-                      _TransactionTile(
-                        patient: 'Mamadou Sarr',
-                        label: 'Consultation médicale',
-                        amount: '15 000 FCFA',
-                        time: '09:24',
-                        paid: true,
-                      ),
-                      SizedBox(height: 10),
-                      _TransactionTile(
-                        patient: 'Ibrahima Diallo',
-                        label: 'Examens labo',
-                        amount: '22 000 FCFA',
-                        time: '09:41',
-                        paid: false,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -96,8 +251,23 @@ class CashDeskScreen extends StatelessWidget {
   }
 }
 
-class _RevenueCard extends StatelessWidget {
-  const _RevenueCard();
+class _CashDeskPatient {
+  const _CashDeskPatient({required this.patient, this.decision});
+
+  final PatientSummary patient;
+  final ConsultationDecision? decision;
+
+  PatientStatus get targetStatus {
+    return decision == ConsultationDecision.sendToLab
+        ? PatientStatus.lab
+        : PatientStatus.released;
+  }
+}
+
+class _CashDeskSummaryCard extends StatelessWidget {
+  const _CashDeskSummaryCard({required this.patients});
+
+  final List<_CashDeskPatient> patients;
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +295,7 @@ class _RevenueCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '185 000',
+                  '${patients.length}',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: AppColors.textPrimary,
                     fontSize: 34,
@@ -134,7 +304,7 @@ class _RevenueCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'FCFA encaissés',
+                  'patients en caisse',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.premiumGold,
                     fontWeight: FontWeight.w700,
@@ -162,52 +332,119 @@ class _RevenueCard extends StatelessWidget {
   }
 }
 
-class _QuickCashGrid extends StatelessWidget {
-  const _QuickCashGrid();
+class _CashDeskMetrics extends StatelessWidget {
+  const _CashDeskMetrics({required this.patients});
+
+  final List<_CashDeskPatient> patients;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 720 ? 4 : 2;
-        return GridView.builder(
-          itemCount: _items.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            mainAxisExtent: 122,
-          ),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemBuilder: (context, index) => _items[index],
-        );
-      },
+    final labCount = patients
+        .where((patient) => patient.targetStatus == PatientStatus.lab)
+        .length;
+    final releaseCount = patients.length - labCount;
+
+    return MetricStrip(
+      items: [
+        MetricStripItem(
+          value: '${patients.length}',
+          label: 'à encaisser',
+          color: AppColors.premiumGold,
+        ),
+        MetricStripItem(
+          value: '$labCount',
+          label: 'vers labo',
+          color: AppColors.info,
+        ),
+        MetricStripItem(
+          value: '$releaseCount',
+          label: 'vers sortie',
+          color: AppColors.success,
+        ),
+      ],
     );
   }
+}
 
-  static const _items = [
-    ActionTile(
-      icon: Icons.price_check_rounded,
-      title: 'Encaisser',
-      subtitle: 'Paiement patient',
-    ),
-    ActionTile(
-      icon: Icons.receipt_rounded,
-      title: 'Facture',
-      subtitle: 'Créer un reçu',
-    ),
-    ActionTile(
-      icon: Icons.account_balance_wallet_rounded,
-      title: 'Dépense',
-      subtitle: 'Sortie de caisse',
-    ),
-    ActionTile(
-      icon: Icons.summarize_rounded,
-      title: 'Journal',
-      subtitle: 'Clôture du jour',
-    ),
-  ];
+class _CashDeskPatientTile extends StatelessWidget {
+  const _CashDeskPatientTile({
+    required this.item,
+    required this.completing,
+    required this.onOpen,
+    required this.onComplete,
+  });
+
+  final _CashDeskPatient item;
+  final bool completing;
+  final VoidCallback onOpen;
+  final VoidCallback onComplete;
+
+  @override
+  Widget build(BuildContext context) {
+    final patient = item.patient;
+    return ActionTile(
+      icon: item.targetStatus == PatientStatus.lab
+          ? Icons.science_rounded
+          : Icons.logout_rounded,
+      title: patient.fullName,
+      subtitle:
+          '${patient.reason} · ${_targetLabel(item.targetStatus)} · ${patient.lastVisit}',
+      onTap: onOpen,
+      trailing: FilledButton.icon(
+        key: ValueKey('cashdesk-complete-${patient.latestVisitId}'),
+        onPressed: completing ? null : onComplete,
+        icon: completing
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.check_rounded, size: 18),
+        label: const Text('Valider'),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(96, 38),
+          backgroundColor: AppColors.medicalGreen,
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+}
+
+class _CashDeskMessage extends StatelessWidget {
+  const _CashDeskMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Column(
+        children: [
+          Icon(icon, color: AppColors.premiumGold, size: 30),
+          const SizedBox(height: 8),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          if (action != null) ...[const SizedBox(height: 8), action!],
+        ],
+      ),
+    );
+  }
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -229,50 +466,10 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _TransactionTile extends StatelessWidget {
-  const _TransactionTile({
-    required this.patient,
-    required this.label,
-    required this.amount,
-    required this.time,
-    required this.paid,
-  });
-
-  final String patient;
-  final String label;
-  final String amount;
-  final String time;
-  final bool paid;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = paid ? AppColors.success : AppColors.warning;
-    return ActionTile(
-      icon: paid ? Icons.check_circle_rounded : Icons.pending_actions_rounded,
-      title: patient,
-      subtitle: '$label · $time',
-      trailing: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            amount,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            paid ? 'Payé' : 'À solder',
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+String _targetLabel(PatientStatus status) {
+  return switch (status) {
+    PatientStatus.lab => 'vers labo',
+    PatientStatus.released => 'vers sortie',
+    _ => status.label,
+  };
 }

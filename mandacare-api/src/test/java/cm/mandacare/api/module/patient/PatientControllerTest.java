@@ -286,6 +286,74 @@ class PatientControllerTest {
     }
 
     @Test
+    void completesCashDeskUsingPersistedConsultationDecision() throws Exception {
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Cash", "Release", "+221 70 000 00 67")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Contrôle après traitement",
+                                  "clinicalExam": "Patient stable",
+                                  "diagnosis": "Évolution favorable",
+                                  "advice": "Retour si aggravation",
+                                  "decision": "RELEASE_PATIENT"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
+                        .with(user("cashier")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latestVisit.id").value(visitId))
+                .andExpect(jsonPath("$.latestVisit.status").value("RELEASED"));
+    }
+
+    @Test
+    void sendsPatientToLabAfterCashDeskWhenConsultationDecisionRequiresLab() throws Exception {
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Cash", "Lab", "+221 70 000 00 68")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Fièvre persistante",
+                                  "clinicalExam": "Altération de l'état général",
+                                  "diagnosis": "Bilan infectieux",
+                                  "advice": "NFS et CRP",
+                                  "decision": "SEND_TO_LAB"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
+                        .with(user("cashier")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latestVisit.id").value(visitId))
+                .andExpect(jsonPath("$.latestVisit.status").value("LAB"));
+    }
+
+    @Test
     void handlesConsultationDraftAndValidation() throws Exception {
         String patientResponse = mockMvc.perform(post("/api/v1/patients")
                         .with(user("doctor"))

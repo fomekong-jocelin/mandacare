@@ -410,10 +410,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     }
 
     try {
-      await widget.patientGateway.changeVisitStatus(
+      await widget.patientGateway.completeCashDesk(
         session: widget.session,
         visitId: latestVisit.visitId,
-        status: _statusAfterCashDesk,
       );
       if (mounted) {
         await _loadTimeline();
