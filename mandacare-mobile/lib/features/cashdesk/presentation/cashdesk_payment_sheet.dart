@@ -37,9 +37,9 @@ class _CashDeskPaymentSheet extends StatefulWidget {
 
 class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController(text: '15000');
+  final _amountController = TextEditingController();
   final _referenceController = TextEditingController();
-  String _mode = 'CASH';
+  _PaymentModeOption _mode = _PaymentModeOption.cash;
 
   @override
   void dispose() {
@@ -127,28 +127,24 @@ class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  helperText: 'Montant payé par le patient',
                   validator: _amountValidator,
                 ),
                 const SizedBox(height: 12),
                 CompactDropdownField(
                   label: 'Mode de paiement',
-                  value: _mode,
-                  items: const [
-                    'CASH',
-                    'MOBILE_MONEY',
-                    'CARD',
-                    'BANK_TRANSFER',
-                  ],
+                  value: _mode.label,
+                  items: _PaymentModeOption.labels,
                   icon: Icons.account_balance_wallet_rounded,
                   onChanged: (value) {
-                    setState(() => _mode = value ?? 'CASH');
+                    setState(() => _mode = _PaymentModeOption.fromLabel(value));
                   },
                 ),
                 const SizedBox(height: 12),
                 CompactTextFormField(
                   key: const ValueKey('cashdesk-payment-reference'),
                   controller: _referenceController,
-                  label: 'Référence',
+                  label: 'Référence / reçu',
                   icon: Icons.confirmation_number_rounded,
                   textInputAction: TextInputAction.done,
                 ),
@@ -187,7 +183,7 @@ class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
     Navigator.of(context).pop(
       CreateCashDeskPaymentPayload(
         amount: _parseAmount(_amountController.text)!,
-        mode: _mode,
+        mode: _mode.apiValue,
         reference: _referenceController.text,
       ),
     );
@@ -198,5 +194,27 @@ class _CashDeskPaymentSheetState extends State<_CashDeskPaymentSheet> {
       return null;
     }
     return double.tryParse(value.trim().replaceAll(',', '.'));
+  }
+}
+
+enum _PaymentModeOption {
+  cash('Espèces', 'CASH'),
+  mobileMoney('Mobile Money', 'MOBILE_MONEY'),
+  card('Carte bancaire', 'CARD'),
+  bankTransfer('Virement', 'BANK_TRANSFER');
+
+  const _PaymentModeOption(this.label, this.apiValue);
+
+  final String label;
+  final String apiValue;
+
+  static List<String> get labels =>
+      values.map((option) => option.label).toList(growable: false);
+
+  static _PaymentModeOption fromLabel(String? label) {
+    return values.firstWhere(
+      (option) => option.label == label,
+      orElse: () => _PaymentModeOption.cash,
+    );
   }
 }

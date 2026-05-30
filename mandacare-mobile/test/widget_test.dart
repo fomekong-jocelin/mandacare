@@ -224,7 +224,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-cashDesk')));
     await tester.pumpAndSettle();
-    expect(find.text('Patients à encaisser'), findsOneWidget);
+    expect(
+      find.text('Encaissement des dossiers orientés par consultation'),
+      findsOneWidget,
+    );
     expect(find.text('Aucun passage en caisse'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-more')));
@@ -386,7 +389,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Caisse'), findsWidgets);
-    expect(find.text('Patients à encaisser'), findsOneWidget);
+    expect(
+      find.text('Encaissement des dossiers orientés par consultation'),
+      findsOneWidget,
+    );
     expect(find.text('Aucun passage en caisse'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -422,10 +428,13 @@ void main() {
     expect(patientGateway.lastQueueLimit, 20);
     expect(find.text('Mamadou Sarr'), findsOneWidget);
     expect(find.textContaining('vers labo'), findsWidgets);
+    expect(find.text('Encaisser'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('cashdesk-complete-$visitId')));
     await tester.pumpAndSettle();
     expect(find.text('Encaisser et orienter'), findsOneWidget);
+    expect(find.text('15000'), findsNothing);
+    expect(find.text('Espèces'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey('cashdesk-payment-amount')),
       '22000',
