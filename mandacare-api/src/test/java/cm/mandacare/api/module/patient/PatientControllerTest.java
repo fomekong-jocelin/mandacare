@@ -49,7 +49,7 @@ class PatientControllerTest {
     @Test
     void createsPatientWithInitialVisit() throws Exception {
         mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Awa", "Diop", "+221 77 420 18 92")))
                 .andExpect(status().isCreated())
@@ -64,13 +64,13 @@ class PatientControllerTest {
     @Test
     void listsPatientsUsingSearchTerm() throws Exception {
         mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Fatou", "Searchable", "+221 70 000 00 11")))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .param("search", "searchable")
                         .param("limit", "10"))
                 .andExpect(status().isOk())
@@ -82,13 +82,13 @@ class PatientControllerTest {
     @Test
     void listsTodayQueueFromOpenVisits() throws Exception {
         mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Queue", "Visible", "+221 70 000 00 12")))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/v1/patients/queue/today")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .param("limit", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].fullName", hasItem("Queue Visible")))
@@ -98,13 +98,13 @@ class PatientControllerTest {
     @Test
     void filtersTodayQueueByVisitStatus() throws Exception {
         mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Queue", "Waiting", "+221 70 000 00 74")))
                 .andExpect(status().isCreated());
 
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Queue", "Cash", "+221 70 000 00 75")))
                 .andExpect(status().isCreated())
@@ -114,7 +114,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -129,7 +129,7 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(get("/api/v1/patients/queue/today")
-                        .with(user("cashier"))
+                        .with(user("cashier").roles("ADMIN", "CAISSIER"))
                         .param("status", "CASH_DESK")
                         .param("limit", "20"))
                 .andExpect(status().isOk())
@@ -144,7 +144,7 @@ class PatientControllerTest {
     @Test
     void createsVisitForExistingPatient() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Existing", "Patient", "+221 70 000 00 13")))
                 .andExpect(status().isCreated())
@@ -154,7 +154,7 @@ class PatientControllerTest {
         String patientId = JsonPath.read(patientBody, "$.id");
 
         mockMvc.perform(post("/api/v1/patients/{id}/visits", patientId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -176,7 +176,7 @@ class PatientControllerTest {
     @Test
     void changesVisitStatus() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Status", "Patient", "+221 70 000 00 14")))
                 .andExpect(status().isCreated())
@@ -186,7 +186,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(patch("/api/v1/visits/{id}/status", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -202,7 +202,7 @@ class PatientControllerTest {
     @Test
     void allowsCashDeskReturnToConsultationForCorrection() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Correction", "Patient", "+221 70 000 00 70")))
                 .andExpect(status().isCreated())
@@ -212,7 +212,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -227,7 +227,7 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(patch("/api/v1/visits/{id}/status", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -243,7 +243,7 @@ class PatientControllerTest {
     @Test
     void rejectsDirectCashDeskStatusCompletion() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Bypass", "Cash", "+221 70 000 00 71")))
                 .andExpect(status().isCreated())
@@ -253,7 +253,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -268,7 +268,7 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(patch("/api/v1/visits/{id}/status", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -282,7 +282,7 @@ class PatientControllerTest {
     @Test
     void createsVitalsAndReturnsLatestForVisit() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Vitals", "Patient", "+221 70 000 00 15")))
                 .andExpect(status().isCreated())
@@ -292,7 +292,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/vitals", visitId)
-                        .with(user("nurse"))
+                        .with(user("nurse").roles("ADMIN", "INFIRMIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -313,14 +313,14 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.bmi").value(22.86));
 
         mockMvc.perform(get("/api/v1/visits/{id}/vitals/latest", visitId)
-                        .with(user("doctor")))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.visitId").value(visitId))
                 .andExpect(jsonPath("$.pulse").value(78))
                 .andExpect(jsonPath("$.bmi").value(22.86));
 
         mockMvc.perform(get("/api/v1/patients/queue/today")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .param("limit", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(
@@ -332,7 +332,7 @@ class PatientControllerTest {
     @Test
     void createsConsultationAndUpdatesVisitStatus() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Consulted", "Patient", "+221 70 000 00 16")))
                 .andExpect(status().isCreated())
@@ -343,7 +343,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/vitals", visitId)
-                        .with(user("nurse"))
+                        .with(user("nurse").roles("ADMIN", "INFIRMIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -356,7 +356,7 @@ class PatientControllerTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -375,13 +375,13 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(get("/api/v1/patients/{id}", patientId)
-                        .with(user("doctor")))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestVisit.id").value(visitId))
                 .andExpect(jsonPath("$.latestVisit.status").value("CASH_DESK"));
 
         mockMvc.perform(get("/api/v1/patients/{id}/timeline", patientId)
-                        .with(user("doctor")))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].status").value("CASH_DESK"))
                 .andExpect(jsonPath("$[0].consultation.decision").value("RELEASE_PATIENT"));
@@ -390,7 +390,7 @@ class PatientControllerTest {
     @Test
     void keepsLabDecisionWhileVisitWaitsAtCashDesk() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Lab", "Payment", "+221 70 000 00 66")))
                 .andExpect(status().isCreated())
@@ -401,7 +401,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -417,7 +417,7 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(get("/api/v1/patients/{id}/timeline", patientId)
-                        .with(user("doctor")))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].status").value("CASH_DESK"))
                 .andExpect(jsonPath("$[0].consultation.decision").value("SEND_TO_LAB"));
@@ -426,7 +426,7 @@ class PatientControllerTest {
     @Test
     void completesCashDeskUsingPersistedConsultationDecision() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Cash", "Release", "+221 70 000 00 67")))
                 .andExpect(status().isCreated())
@@ -436,7 +436,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -454,7 +454,7 @@ class PatientControllerTest {
         long initialPaymentsCount = payments.count();
 
         mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
-                        .with(user("cashier"))
+                        .with(user("cashier").roles("ADMIN", "CAISSIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cashPaymentJson()))
                 .andExpect(status().isOk())
@@ -471,7 +471,7 @@ class PatientControllerTest {
         assertValidPdf(invoicePdf);
 
         mockMvc.perform(get("/api/v1/visits/{id}/invoices", visitId)
-                        .with(user("doctor")))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].invoiceNumber").exists())
                 .andExpect(jsonPath("$[0].totalAmount").value(5000.0))
@@ -482,7 +482,7 @@ class PatientControllerTest {
     @Test
     void sendsPatientToLabAfterCashDeskWhenConsultationDecisionRequiresLab() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Cash", "Lab", "+221 70 000 00 68")))
                 .andExpect(status().isCreated())
@@ -492,7 +492,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -507,7 +507,7 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
-                        .with(user("cashier"))
+                        .with(user("cashier").roles("ADMIN", "CAISSIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cashPaymentJson()))
                 .andExpect(status().isOk())
@@ -518,7 +518,7 @@ class PatientControllerTest {
     @Test
     void submitsLabResultsAndReturnsPatientToConsultation() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Lab", "Result", "+221 70 000 00 72")))
                 .andExpect(status().isCreated())
@@ -528,7 +528,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -543,7 +543,7 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
-                        .with(user("cashier"))
+                        .with(user("cashier").roles("ADMIN", "CAISSIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cashPaymentJson()))
                 .andExpect(status().isOk())
@@ -552,7 +552,7 @@ class PatientControllerTest {
         long initialLabResultCount = labResults.count();
 
         mockMvc.perform(post("/api/v1/visits/{id}/lab-results", visitId)
-                        .with(user("lab"))
+                        .with(user("lab").roles("ADMIN", "LABORATOIRE"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(labResultJson()))
                 .andExpect(status().isOk())
@@ -565,7 +565,7 @@ class PatientControllerTest {
     @Test
     void rejectsLabResultsWhenVisitIsNotAtLab() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Not", "Lab", "+221 70 000 00 73")))
                 .andExpect(status().isCreated())
@@ -575,7 +575,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/lab-results", visitId)
-                        .with(user("lab"))
+                        .with(user("lab").roles("ADMIN", "LABORATOIRE"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(labResultJson()))
                 .andExpect(status().isBadRequest())
@@ -585,7 +585,7 @@ class PatientControllerTest {
     @Test
     void rejectsCashDeskCompletionWithoutPayment() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Cash", "Required", "+221 70 000 00 69")))
                 .andExpect(status().isCreated())
@@ -595,7 +595,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -610,7 +610,7 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
-                        .with(user("cashier"))
+                        .with(user("cashier").roles("ADMIN", "CAISSIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -620,7 +620,7 @@ class PatientControllerTest {
     @Test
     void handlesConsultationDraftAndValidation() throws Exception {
         String patientResponse = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -642,7 +642,7 @@ class PatientControllerTest {
 
         // 1. Create a draft consultation (missing clinicalExam and diagnosis)
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -662,7 +662,7 @@ class PatientControllerTest {
 
         // 2. Try validating with incomplete fields (should fail)
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -679,7 +679,7 @@ class PatientControllerTest {
 
         // 3. Update the draft with complete details and validate
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -700,7 +700,7 @@ class PatientControllerTest {
 
         // 4. Try updating the validated consultation (should fail with conflict)
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -718,7 +718,7 @@ class PatientControllerTest {
     @Test
     void handlesConsultationCorrection() throws Exception {
         String patientResponse = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -740,7 +740,7 @@ class PatientControllerTest {
 
         // 1. Create and validate consultation
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -757,7 +757,7 @@ class PatientControllerTest {
 
         // 2. Try modifying without a motif (should fail)
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -776,7 +776,7 @@ class PatientControllerTest {
         long initialLogsCount = auditLogs.count();
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -801,7 +801,7 @@ class PatientControllerTest {
     void managesPrescriptionWorkflow() throws Exception {
         // 1. Create patient and get visitId
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Presc", "Patient", "+221 70 000 00 99")))
                 .andExpect(status().isCreated())
@@ -812,7 +812,7 @@ class PatientControllerTest {
 
         // 2. Create consultation draft (needed to link prescription)
         String consultationBody = mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -831,7 +831,7 @@ class PatientControllerTest {
 
         // 3. Save a draft prescription
         mockMvc.perform(post("/api/v1/consultations/{id}/prescription", consultationId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -857,7 +857,7 @@ class PatientControllerTest {
 
         // 4. Save a validated prescription (should succeed)
         mockMvc.perform(post("/api/v1/consultations/{id}/prescription", consultationId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -890,7 +890,7 @@ class PatientControllerTest {
 
         // 5. Get prescription
         mockMvc.perform(get("/api/v1/consultations/{id}/prescription", consultationId)
-                        .with(user("doctor")))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("VALIDATED"))
                 .andExpect(jsonPath("$.items", hasSize(2)));
@@ -906,7 +906,7 @@ class PatientControllerTest {
     @Test
     void rejectsInvalidPatientCreationRequest() throws Exception {
         mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -925,7 +925,7 @@ class PatientControllerTest {
     @Test
     void returnsTimelineForPatient() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Timeline", "Patient", "+221 70 000 00 20")))
                 .andExpect(status().isCreated())
@@ -936,7 +936,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(get("/api/v1/patients/{id}/timeline", patientId)
-                        .with(user("doctor")))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].visitId").value(visitId))
@@ -947,7 +947,7 @@ class PatientControllerTest {
     @Test
     void returnsNotFoundForUnknownPatient() throws Exception {
         mockMvc.perform(get("/api/v1/patients/{id}", UUID.randomUUID())
-                        .with(user("doctor")))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("PATIENT_NOT_FOUND"));
     }
@@ -955,7 +955,7 @@ class PatientControllerTest {
     @Test
     void returnsActiveExamsCatalog() throws Exception {
         mockMvc.perform(get("/api/v1/exams")
-                        .with(user("doctor")))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[?(@.code == 'NFS')].price").value(4000.0));
@@ -965,7 +965,7 @@ class PatientControllerTest {
     void performsDetailedBillingFlow() throws Exception {
         // 1. Create Patient
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Billing", "Test", "+221 70 000 00 99")))
                 .andExpect(status().isCreated())
@@ -977,7 +977,7 @@ class PatientControllerTest {
 
         // 2. Perform vitals entry
         mockMvc.perform(post("/api/v1/visits/{id}/vitals", visitId)
-                        .with(user("nurse"))
+                        .with(user("nurse").roles("ADMIN", "INFIRMIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -991,7 +991,7 @@ class PatientControllerTest {
 
         // 3. Consultation with decision SEND_TO_LAB and NFS exam (NFS UUID is 30000000-0000-0000-0000-000000000007)
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -1008,7 +1008,7 @@ class PatientControllerTest {
 
         // 4. Preview invoice
         mockMvc.perform(get("/api/v1/visits/{id}/invoice-preview", visitId)
-                        .with(user("cashier")))
+                        .with(user("cashier").roles("ADMIN", "CAISSIER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalAmount").value(9000.0)) // 5000 (consultation) + 4000 (NFS)
                 .andExpect(jsonPath("$.items", hasSize(2)))
@@ -1017,7 +1017,7 @@ class PatientControllerTest {
 
         // 5. Complete payment (CASH, 9000 FCFA)
         mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
-                        .with(user("cashier"))
+                        .with(user("cashier").roles("ADMIN", "CAISSIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -1033,7 +1033,7 @@ class PatientControllerTest {
     @Test
     void printsLatestLabResultPdf() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson("Labpdf", "Patient", "+221 70 000 00 88")))
                 .andExpect(status().isCreated())
@@ -1043,7 +1043,7 @@ class PatientControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -1059,14 +1059,14 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
 
         mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
-                        .with(user("cashier"))
+                        .with(user("cashier").roles("ADMIN", "CAISSIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cashPaymentJson()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestVisit.status").value("LAB"));
 
         mockMvc.perform(post("/api/v1/visits/{id}/lab-results", visitId)
-                        .with(user("lab"))
+                        .with(user("lab").roles("ADMIN", "LABORATOIRE"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(longLabResultJson()))
                 .andExpect(status().isOk())

@@ -2,6 +2,7 @@ package cm.mandacare.api.module.patient;
 
 import jakarta.validation.Valid;
 import java.util.UUID;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,6 +24,7 @@ class VisitController {
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN','MEDECIN','INFIRMIER','CAISSIER','LABORATOIRE')")
     PatientResponse changeStatus(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateVisitStatusRequest request
@@ -31,6 +33,7 @@ class VisitController {
     }
 
     @PatchMapping("/{id}/cash-desk/complete")
+    @PreAuthorize("hasAnyRole('ADMIN','CAISSIER')")
     PatientResponse completeCashDesk(
             @PathVariable UUID id,
             @Valid @RequestBody CashDeskPaymentRequest request
@@ -39,6 +42,7 @@ class VisitController {
     }
 
     @org.springframework.web.bind.annotation.GetMapping("/{id}/invoice-preview")
+    @PreAuthorize("hasAnyRole('ADMIN','CAISSIER')")
     InvoicePreviewResponse getInvoicePreview(@PathVariable UUID id) {
         return service.getInvoicePreview(id);
     }
@@ -70,6 +74,7 @@ class VisitController {
 
     @org.springframework.web.bind.annotation.GetMapping("/{id}/invoices")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('ADMIN','CAISSIER')")
     java.util.List<InvoiceResponse> getInvoices(@PathVariable UUID id) {
         java.util.List<InvoiceEntity> invoices = invoiceRepository.findByVisitIdOrderByCreatedAtDesc(id);
         return invoices.stream().map(invoice -> new InvoiceResponse(
@@ -91,4 +96,3 @@ class VisitController {
         )).toList();
     }
 }
-

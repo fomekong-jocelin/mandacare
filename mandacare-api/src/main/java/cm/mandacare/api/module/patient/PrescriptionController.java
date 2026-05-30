@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +25,13 @@ class PrescriptionController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MEDECIN')")
     ResponseEntity<PrescriptionResponse> get(@PathVariable UUID consultationId) {
         return ResponseEntity.ok(service.getByConsultationId(consultationId));
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','MEDECIN')")
     ResponseEntity<PrescriptionResponse> save(
             @PathVariable UUID consultationId,
             @Valid @RequestBody CreatePrescriptionRequest request

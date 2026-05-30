@@ -4,16 +4,19 @@ import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/layout/adaptive_layout.dart';
 import '../../../shared/presentation/widgets/action_tile.dart';
 import '../../../shared/presentation/widgets/feature_header.dart';
+import '../../auth/domain/auth_session.dart';
+import '../../users/data/user_gateway.dart';
+import '../../users/presentation/user_management_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({
-    required this.connectedUserName,
-    required this.username,
+    required this.session,
+    required this.userGateway,
     super.key,
   });
 
-  final String connectedUserName;
-  final String username;
+  final AuthSession session;
+  final UserGateway userGateway;
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +24,8 @@ class MoreScreen extends StatelessWidget {
       child: Column(
         children: [
           FeatureHeader(
-            title: 'Administration',
-            subtitle: 'Compte, modules et paramètres',
+            title: 'Profil utilisateur',
+            subtitle: 'Compte, rôle et modules',
             actionIcon: Icons.settings_rounded,
             actionTooltip: 'Paramètres',
             onActionPressed: () {},
@@ -39,10 +42,7 @@ class MoreScreen extends StatelessWidget {
                   ),
                   sliver: SliverList.list(
                     children: [
-                      _ProfileCard(
-                        connectedUserName: connectedUserName,
-                        username: username,
-                      ),
+                      _ProfileCard(session: session),
                       const SizedBox(height: 18),
                       const _SectionTitle(title: 'Gestion'),
                       const SizedBox(height: 10),
@@ -63,8 +63,15 @@ class MoreScreen extends StatelessWidget {
                       ActionTile(
                         icon: Icons.groups_rounded,
                         title: 'Équipe',
-                        subtitle: 'Module non raccordé',
-                        trailing: _UnavailableBadge(),
+                        subtitle: session.roleCode == 'ADMIN'
+                            ? 'Utilisateurs, rôles et accès'
+                            : 'Réservé aux administrateurs',
+                        onTap: session.roleCode == 'ADMIN'
+                            ? () => _openTeam(context)
+                            : null,
+                        trailing: session.roleCode == 'ADMIN'
+                            ? null
+                            : _UnavailableBadge(label: 'Admin'),
                       ),
                       const SizedBox(height: 18),
                       const _SectionTitle(title: 'Configuration'),
@@ -92,23 +99,25 @@ class MoreScreen extends StatelessWidget {
       ),
     );
   }
+
+  void _openTeam(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            UserManagementScreen(session: session, userGateway: userGateway),
+      ),
+    );
+  }
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.connectedUserName, required this.username});
+  const _ProfileCard({required this.session});
 
-  final String connectedUserName;
-  final String username;
+  final AuthSession session;
 
   @override
   Widget build(BuildContext context) {
-    final initials = connectedUserName
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part[0].toUpperCase())
-        .join();
+    final roleDescription = session.roleDescription?.trim();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -128,7 +137,7 @@ class _ProfileCard extends StatelessWidget {
           CircleAvatar(
             radius: 27,
             backgroundColor: Colors.white,
-            child: _ProfileInitials(initials: initials),
+            child: _ProfileInitials(initials: session.initials),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -136,7 +145,7 @@ class _ProfileCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  connectedUserName,
+                  session.displayName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -144,20 +153,101 @@ class _ProfileCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  username,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.76),
-                  ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _RoleBadge(
+                      code: session.roleCode,
+                      label: session.roleLabel,
+                    ),
+                    _UsernameBadge(username: session.username),
+                  ],
                 ),
+                if (roleDescription != null && roleDescription.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    roleDescription,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      height: 1.25,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          const Icon(Icons.verified_rounded, color: AppColors.premiumGold),
         ],
+      ),
+    );
+  }
+}
+
+class _RoleBadge extends StatelessWidget {
+  const _RoleBadge({required this.code, required this.label});
+
+  final String code;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_roleIcon(code), color: AppColors.premiumGold, size: 15),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _roleIcon(String code) {
+    return switch (code.toUpperCase()) {
+      'ADMIN' => Icons.admin_panel_settings_rounded,
+      'MEDECIN' => Icons.medical_services_rounded,
+      'INFIRMIER' => Icons.health_and_safety_rounded,
+      'CAISSIER' => Icons.point_of_sale_rounded,
+      'LABORATOIRE' => Icons.science_rounded,
+      'ACCUEIL' => Icons.support_agent_rounded,
+      _ => Icons.badge_rounded,
+    };
+  }
+}
+
+class _UsernameBadge extends StatelessWidget {
+  const _UsernameBadge({required this.username});
+
+  final String username;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '@$username',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Colors.white.withValues(alpha: 0.78),
+        fontWeight: FontWeight.w600,
       ),
     );
   }
@@ -181,7 +271,9 @@ class _ProfileInitials extends StatelessWidget {
 }
 
 class _UnavailableBadge extends StatelessWidget {
-  const _UnavailableBadge();
+  const _UnavailableBadge({this.label = 'À raccorder'});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +284,7 @@ class _UnavailableBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        'À raccorder',
+        label,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
           color: AppColors.textSecondary,
           fontWeight: FontWeight.w700,

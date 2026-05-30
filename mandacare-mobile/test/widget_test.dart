@@ -14,6 +14,10 @@ import 'package:mandacare_mobile/features/patients/domain/vitals_summary.dart';
 import 'package:mandacare_mobile/features/consultations/domain/exam.dart';
 import 'package:mandacare_mobile/features/cashdesk/domain/invoice_preview.dart';
 import 'package:mandacare_mobile/features/cashdesk/domain/invoice.dart';
+import 'package:mandacare_mobile/features/users/data/user_gateway.dart';
+import 'package:mandacare_mobile/features/users/domain/team_user.dart';
+import 'package:mandacare_mobile/features/users/domain/user_payload.dart';
+import 'package:mandacare_mobile/features/users/domain/user_role.dart';
 import 'package:mandacare_mobile/app/mandacare_app.dart';
 
 void main() {
@@ -21,12 +25,15 @@ void main() {
     accessToken: 'test-token',
     username: 'admin',
     displayName: 'Dr Manda',
+    roleCode: 'ADMIN',
+    roleLabel: 'Administrateur',
   );
 
   Widget appWithSession() {
     return MandaCareApp(
       initialSession: session,
       patientGateway: FakePatientGateway(),
+      userGateway: FakeUserGateway(),
     );
   }
 
@@ -260,10 +267,17 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-more')));
     await tester.pumpAndSettle();
-    expect(find.text('Compte, modules et paramètres'), findsOneWidget);
+    expect(find.text('Compte, rôle et modules'), findsOneWidget);
     expect(find.text('Dr Manda'), findsWidgets);
+    expect(find.text('Administrateur'), findsWidgets);
     expect(find.text('Stock pharmacie'), findsOneWidget);
-    expect(find.text('Module non raccordé'), findsWidgets);
+    expect(find.text('Utilisateurs, rôles et accès'), findsOneWidget);
+
+    await tester.tap(find.text('Équipe'));
+    await tester.pumpAndSettle();
+    expect(find.text('Utilisateurs, profils et accès'), findsOneWidget);
+    expect(find.text('Awa Ndiaye'), findsOneWidget);
+    expect(find.text('Caissier · @paul.caisse'), findsOneWidget);
   });
 
   testWidgets('saves a consultation and applies the decision', (tester) async {
@@ -530,10 +544,7 @@ void main() {
     final labResultsFinder = find.byKey(const ValueKey('lab-results-field'));
     await tester.scrollUntilVisible(labResultsFinder, 80.0);
     await tester.pumpAndSettle();
-    await tester.enterText(
-      labResultsFinder,
-      'GB 7200/mm3, Hb 13 g/dL',
-    );
+    await tester.enterText(labResultsFinder, 'GB 7200/mm3, Hb 13 g/dL');
     await tester.tap(find.byKey(const ValueKey('submit-lab-results-button')));
     await tester.pumpAndSettle();
 
@@ -850,9 +861,7 @@ class FakePatientGateway implements PatientGateway {
   }
 
   @override
-  Future<List<Exam>> listActiveExams({
-    required AuthSession session,
-  }) async {
+  Future<List<Exam>> listActiveExams({required AuthSession session}) async {
     return const [
       Exam(
         id: '30000000-0000-0000-0000-000000000007',
@@ -881,12 +890,7 @@ class FakePatientGateway implements PatientGateway {
           price: 5000.0,
           quantity: 1,
         ),
-        InvoiceLine(
-          type: 'EXAM',
-          label: 'NFS',
-          price: 4000.0,
-          quantity: 1,
-        ),
+        InvoiceLine(type: 'EXAM', label: 'NFS', price: 4000.0, quantity: 1),
       ],
     );
   }
@@ -914,12 +918,7 @@ class FakePatientGateway implements PatientGateway {
             price: 5000.0,
             quantity: 1,
           ),
-          InvoiceLine(
-            type: 'EXAM',
-            label: 'NFS',
-            price: 4000.0,
-            quantity: 1,
-          ),
+          InvoiceLine(type: 'EXAM', label: 'NFS', price: 4000.0, quantity: 1),
         ],
       ),
     ];
@@ -962,6 +961,102 @@ class FakePatientGateway implements PatientGateway {
       lastVisit: patient.lastVisit,
       status: status,
       priority: patient.priority,
+    );
+  }
+}
+
+class FakeUserGateway implements UserGateway {
+  final List<UserRole> _roles = const [
+    UserRole(
+      code: 'ADMIN',
+      label: 'Administrateur',
+      description: 'Accès complet',
+    ),
+    UserRole(code: 'MEDECIN', label: 'Médecin'),
+    UserRole(code: 'INFIRMIER', label: 'Infirmier'),
+    UserRole(code: 'CAISSIER', label: 'Caissier'),
+    UserRole(code: 'LABORATOIRE', label: 'Laboratoire'),
+    UserRole(code: 'ACCUEIL', label: 'Accueil'),
+    UserRole(code: 'AUTRE', label: 'Autre profil'),
+  ];
+
+  final List<TeamUser> _users = const [
+    TeamUser(
+      id: 'user-admin',
+      username: 'admin',
+      displayName: 'Dr Manda',
+      firstName: 'Dr',
+      lastName: 'Manda',
+      status: 'ACTIVE',
+      role: UserRole(code: 'ADMIN', label: 'Administrateur'),
+    ),
+    TeamUser(
+      id: 'user-doctor',
+      username: 'awa.ndiaye',
+      displayName: 'Awa Ndiaye',
+      firstName: 'Awa',
+      lastName: 'Ndiaye',
+      phone: '690000001',
+      status: 'ACTIVE',
+      role: UserRole(code: 'MEDECIN', label: 'Médecin'),
+    ),
+    TeamUser(
+      id: 'user-cashier',
+      username: 'paul.caisse',
+      displayName: 'Paul Caisse',
+      firstName: 'Paul',
+      lastName: 'Caisse',
+      status: 'INACTIVE',
+      role: UserRole(code: 'CAISSIER', label: 'Caissier'),
+    ),
+  ];
+
+  @override
+  Future<List<UserRole>> listRoles({required AuthSession session}) async {
+    return _roles;
+  }
+
+  @override
+  Future<List<TeamUser>> listUsers({required AuthSession session}) async {
+    return _users;
+  }
+
+  @override
+  Future<TeamUser> createUser({
+    required AuthSession session,
+    required CreateTeamUserPayload payload,
+  }) async {
+    final role = _roles.firstWhere((role) => role.code == payload.roleCode);
+    return TeamUser(
+      id: 'created-user',
+      username: payload.username,
+      displayName: '${payload.firstName} ${payload.lastName}',
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      phone: payload.phone,
+      email: payload.email,
+      status: 'ACTIVE',
+      role: role,
+    );
+  }
+
+  @override
+  Future<TeamUser> updateUser({
+    required AuthSession session,
+    required String id,
+    required UpdateTeamUserPayload payload,
+  }) async {
+    final role = _roles.firstWhere((role) => role.code == payload.roleCode);
+    return TeamUser(
+      id: id,
+      username: payload.username,
+      displayName: '${payload.firstName} ${payload.lastName}',
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      phone: payload.phone,
+      email: payload.email,
+      status: payload.status,
+      role: role,
     );
   }
 }

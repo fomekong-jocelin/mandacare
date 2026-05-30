@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../features/auth/data/auth_gateway.dart';
 import '../features/auth/domain/auth_session.dart';
 import '../features/patients/data/patient_gateway.dart';
+import '../features/users/data/user_gateway.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
@@ -11,12 +12,14 @@ class MandaCareApp extends StatelessWidget {
     this.initialSession,
     this.authGateway,
     this.patientGateway,
+    this.userGateway,
     super.key,
   });
 
   final AuthSession? initialSession;
   final AuthGateway? authGateway;
   final PatientGateway? patientGateway;
+  final UserGateway? userGateway;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +43,7 @@ class MandaCareApp extends StatelessWidget {
         initialSession: initialSession,
         authGateway: authGateway,
         patientGateway: patientGateway,
+        userGateway: userGateway,
       ),
     );
   }

@@ -25,11 +25,31 @@ class RoleEntity {
     }
 
     static RoleEntity admin() {
+        return of(
+                "ADMIN",
+                "Administrateur",
+                "Accès complet aux dossiers, aux opérations et à la configuration."
+        );
+    }
+
+    static RoleEntity of(String code, String label, String description) {
         RoleEntity role = new RoleEntity();
         role.id = UUID.randomUUID();
-        role.code = "ADMIN";
-        role.label = "Administrateur";
-        role.description = "Accès administrateur local";
+        role.code = code;
+        role.label = label;
+        role.description = description;
         return role;
+    }
+
+    String code() {
+        return code;
+    }
+
+    String label() {
+        return label;
+    }
+
+    String description() {
+        return description;
     }
 }

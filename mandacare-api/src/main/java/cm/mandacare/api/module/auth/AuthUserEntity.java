@@ -29,6 +29,12 @@ class AuthUserEntity {
     @Column(name = "last_name", nullable = false, length = 120)
     private String lastName;
 
+    @Column(length = 40)
+    private String phone;
+
+    @Column(length = 180)
+    private String email;
+
     @Column(nullable = false, unique = true, length = 80)
     private String username;
 
@@ -48,6 +54,28 @@ class AuthUserEntity {
     private Instant updatedAt;
 
     protected AuthUserEntity() {
+    }
+
+    static AuthUserEntity staff(
+            RoleEntity role,
+            String firstName,
+            String lastName,
+            String phone,
+            String email,
+            String username,
+            String passwordHash
+    ) {
+        AuthUserEntity user = new AuthUserEntity();
+        user.id = UUID.randomUUID();
+        user.role = role;
+        user.firstName = firstName;
+        user.lastName = lastName;
+        user.phone = phone;
+        user.email = email;
+        user.username = username;
+        user.passwordHash = passwordHash;
+        user.status = "ACTIVE";
+        return user;
     }
 
     static AuthUserEntity admin(RoleEntity role, AuthProperties.DefaultAdmin admin, String passwordHash) {
@@ -74,8 +102,48 @@ class AuthUserEntity {
         updatedAt = Instant.now();
     }
 
+    UUID id() {
+        return id;
+    }
+
     String username() {
         return username;
+    }
+
+    RoleEntity role() {
+        return role;
+    }
+
+    String firstName() {
+        return firstName;
+    }
+
+    String lastName() {
+        return lastName;
+    }
+
+    String phone() {
+        return phone;
+    }
+
+    String email() {
+        return email;
+    }
+
+    String status() {
+        return status;
+    }
+
+    Instant lastLoginAt() {
+        return lastLoginAt;
+    }
+
+    Instant createdAt() {
+        return createdAt;
+    }
+
+    Instant updatedAt() {
+        return updatedAt;
     }
 
     String passwordHash() {
@@ -88,6 +156,28 @@ class AuthUserEntity {
 
     boolean active() {
         return "ACTIVE".equals(status);
+    }
+
+    void updateProfile(
+            RoleEntity role,
+            String firstName,
+            String lastName,
+            String phone,
+            String email,
+            String username,
+            String status
+    ) {
+        this.role = role;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.phone = phone;
+        this.email = email;
+        this.username = username;
+        this.status = status;
+    }
+
+    void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     void markLoggedIn() {

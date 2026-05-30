@@ -29,12 +29,14 @@ class AuthService {
 
         user.markLoggedIn();
         AuthToken token = tokens.issue(user.username());
+        UserProfileResponse profile = UserProfileResponse.from(user);
         return new LoginResponse(
                 token.value(),
                 "Bearer",
                 token.expiresAt(),
                 user.username(),
-                user.displayName()
+                user.displayName(),
+                profile
         );
     }
 

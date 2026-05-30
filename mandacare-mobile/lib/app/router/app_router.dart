@@ -4,6 +4,7 @@ import '../../features/auth/data/auth_gateway.dart';
 import '../../features/auth/domain/auth_session.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/patients/data/patient_gateway.dart';
+import '../../features/users/data/user_gateway.dart';
 import '../api/api_client.dart';
 import '../api/api_config.dart';
 import '../navigation/app_shell.dart';
@@ -13,12 +14,14 @@ class AppRouter extends StatefulWidget {
     this.initialSession,
     this.authGateway,
     this.patientGateway,
+    this.userGateway,
     super.key,
   });
 
   final AuthSession? initialSession;
   final AuthGateway? authGateway;
   final PatientGateway? patientGateway;
+  final UserGateway? userGateway;
 
   @override
   State<AppRouter> createState() => _AppRouterState();
@@ -28,6 +31,7 @@ class _AppRouterState extends State<AppRouter> {
   late final ApiClient _apiClient;
   late final AuthGateway _authGateway;
   late final PatientGateway _patientGateway;
+  late final UserGateway _userGateway;
   AuthSession? _session;
 
   @override
@@ -37,6 +41,7 @@ class _AppRouterState extends State<AppRouter> {
     _authGateway = widget.authGateway ?? BackendAuthGateway(_apiClient);
     _patientGateway =
         widget.patientGateway ?? BackendPatientGateway(_apiClient);
+    _userGateway = widget.userGateway ?? BackendUserGateway(_apiClient);
     _session = widget.initialSession;
   }
 
@@ -46,7 +51,11 @@ class _AppRouterState extends State<AppRouter> {
     if (session == null) {
       return LoginScreen(onLogin: _login);
     }
-    return AppShell(session: session, patientGateway: _patientGateway);
+    return AppShell(
+      session: session,
+      patientGateway: _patientGateway,
+      userGateway: _userGateway,
+    );
   }
 
   Future<AuthSession> _login(String username, String password) async {

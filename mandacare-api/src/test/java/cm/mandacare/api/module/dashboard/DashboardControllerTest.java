@@ -33,7 +33,7 @@ class DashboardControllerTest {
         BigDecimal initialRevenue = decimalValue(before, "$.dailyRevenue");
 
         String patientBody = mockMvc.perform(post("/api/v1/patients")
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validPatientJson()))
                 .andExpect(status().isCreated())
@@ -43,7 +43,7 @@ class DashboardControllerTest {
         String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
 
         mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
-                        .with(user("doctor"))
+                        .with(user("doctor").roles("ADMIN", "MEDECIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -57,7 +57,7 @@ class DashboardControllerTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
-                        .with(user("cashier"))
+                        .with(user("cashier").roles("ADMIN", "CAISSIER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -81,7 +81,7 @@ class DashboardControllerTest {
 
     private String dashboardBody() throws Exception {
         return mockMvc.perform(get("/api/v1/dashboard/today")
-                        .with(user("manager")))
+                        .with(user("manager").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()

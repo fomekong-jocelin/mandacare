@@ -24,6 +24,7 @@ class DashboardScreen extends StatefulWidget {
     super.key,
     this.refreshRequestId = 0,
     this.connectedUserName = 'Dr Manda',
+    this.connectedUserRole = 'Utilisateur',
   });
 
   final AuthSession session;
@@ -33,6 +34,7 @@ class DashboardScreen extends StatefulWidget {
   final VoidCallback onOpenConsultations;
   final VoidCallback onOpenCashDesk;
   final String connectedUserName;
+  final String connectedUserRole;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -71,6 +73,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _Header(
                 isTablet: isTablet,
                 connectedUserName: widget.connectedUserName,
+                connectedUserRole: widget.connectedUserRole,
               ),
               Expanded(
                 child: RefreshIndicator(
@@ -282,10 +285,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.isTablet, required this.connectedUserName});
+  const _Header({
+    required this.isTablet,
+    required this.connectedUserName,
+    required this.connectedUserRole,
+  });
 
   final bool isTablet;
   final String connectedUserName;
+  final String connectedUserRole;
 
   @override
   Widget build(BuildContext context) {
@@ -316,13 +324,14 @@ class _Header extends StatelessWidget {
                   Expanded(
                     child: _GreetingText(
                       connectedUserName: connectedUserName,
+                      connectedUserRole: connectedUserRole,
                       isTablet: isTablet,
                     ),
                   ),
                   const SizedBox(width: 10),
                   const _TodayChip(),
                   const SizedBox(width: 8),
-                  const _HeaderActions(),
+                  _HeaderActions(connectedUserName: connectedUserName),
                 ],
               )
             : Column(
@@ -335,7 +344,7 @@ class _Header extends StatelessWidget {
                         fit: BoxFit.contain,
                       ),
                       const Spacer(),
-                      const _HeaderActions(),
+                      _HeaderActions(connectedUserName: connectedUserName),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -344,6 +353,7 @@ class _Header extends StatelessWidget {
                       Expanded(
                         child: _GreetingText(
                           connectedUserName: connectedUserName,
+                          connectedUserRole: connectedUserRole,
                           isTablet: isTablet,
                         ),
                       ),
@@ -359,10 +369,19 @@ class _Header extends StatelessWidget {
 }
 
 class _HeaderActions extends StatelessWidget {
-  const _HeaderActions();
+  const _HeaderActions({required this.connectedUserName});
+
+  final String connectedUserName;
 
   @override
   Widget build(BuildContext context) {
+    final initials = connectedUserName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.substring(0, 1).toUpperCase())
+        .join();
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -376,10 +395,13 @@ class _HeaderActions extends StatelessWidget {
           icon: const Icon(Icons.notifications_none_rounded),
         ),
         const SizedBox(width: 8),
-        const CircleAvatar(
+        CircleAvatar(
           radius: 21,
           backgroundColor: AppColors.deepHealthBlue,
-          child: Text('DM', style: TextStyle(color: Colors.white)),
+          child: Text(
+            initials.isEmpty ? 'U' : initials,
+            style: const TextStyle(color: Colors.white),
+          ),
         ),
       ],
     );
@@ -389,10 +411,12 @@ class _HeaderActions extends StatelessWidget {
 class _GreetingText extends StatelessWidget {
   const _GreetingText({
     required this.connectedUserName,
+    required this.connectedUserRole,
     required this.isTablet,
   });
 
   final String connectedUserName;
+  final String connectedUserRole;
   final bool isTablet;
 
   @override
@@ -413,7 +437,7 @@ class _GreetingText extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'Activité de la clinique',
+          connectedUserRole,
           maxLines: 1,
           overflow: TextOverflow.fade,
           softWrap: false,

@@ -7,6 +7,7 @@ public record LoginResponse(
         String tokenType,
         Instant expiresAt,
         String username,
-        String displayName
+        String displayName,
+        UserProfileResponse profile
 ) {
 }

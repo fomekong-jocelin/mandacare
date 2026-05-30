@@ -8,6 +8,7 @@ import '../../features/more/presentation/more_screen.dart';
 import '../../features/patients/data/patient_gateway.dart';
 import '../../features/patients/presentation/patient_filter.dart';
 import '../../features/patients/presentation/patient_list_screen.dart';
+import '../../features/users/data/user_gateway.dart';
 import '../../shared/presentation/layout/adaptive_layout.dart';
 import 'app_tab.dart';
 import 'floating_bottom_nav.dart';
@@ -16,11 +17,13 @@ class AppShell extends StatefulWidget {
   const AppShell({
     required this.session,
     required this.patientGateway,
+    required this.userGateway,
     super.key,
   });
 
   final AuthSession session;
   final PatientGateway patientGateway;
+  final UserGateway userGateway;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -44,6 +47,7 @@ class _AppShellState extends State<AppShell> {
           patientGateway: widget.patientGateway,
           refreshRequestId: _dashboardRefreshRequestId,
           connectedUserName: widget.session.displayName,
+          connectedUserRole: widget.session.roleLabel,
           onOpenPatients: _openPatients,
           onOpenConsultations: () => _openTab(AppTab.consultations),
           onOpenCashDesk: () => _openTab(AppTab.cashDesk),
@@ -66,10 +70,7 @@ class _AppShellState extends State<AppShell> {
           refreshRequestId: _cashDeskRefreshRequestId,
           onQueueChanged: _requestDashboardRefresh,
         ),
-        MoreScreen(
-          connectedUserName: widget.session.displayName,
-          username: widget.session.username,
-        ),
+        MoreScreen(session: widget.session, userGateway: widget.userGateway),
       ],
     );
 
