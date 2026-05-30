@@ -86,10 +86,10 @@ class PatientService {
     }
 
     @Transactional(readOnly = true)
-    List<PatientResponse> todayQueue(int limit) {
+    List<PatientResponse> todayQueue(int limit, VisitStatus status) {
         Instant start = LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant();
         Instant end = start.plusSeconds(24 * 60 * 60);
-        return visits.findTodayQueue(start, end, VisitStatus.RELEASED, PageRequest.of(0, limit))
+        return visits.findTodayQueue(start, end, VisitStatus.RELEASED, status, PageRequest.of(0, limit))
                 .stream()
                 .map(visit -> mapper.toResponse(visit.patient(), visit))
                 .toList();

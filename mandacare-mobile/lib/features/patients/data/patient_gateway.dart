@@ -14,7 +14,11 @@ abstract class PatientGateway {
     String? search,
   });
 
-  Future<List<PatientSummary>> listTodayQueue({required AuthSession session});
+  Future<List<PatientSummary>> listTodayQueue({
+    required AuthSession session,
+    PatientStatus? status,
+    int limit = 8,
+  });
 
   Future<PatientSummary> createPatient({
     required AuthSession session,
@@ -108,10 +112,17 @@ class BackendPatientGateway implements PatientGateway {
   @override
   Future<List<PatientSummary>> listTodayQueue({
     required AuthSession session,
+    PatientStatus? status,
+    int limit = 8,
   }) async {
+    final query = {'limit': limit.toString()};
+    if (status != null) {
+      query['status'] = status.apiValue;
+    }
+
     final response = await apiClient.getJsonList(
       '/patients/queue/today',
-      query: {'limit': '8'},
+      query: query,
       token: session.accessToken,
     );
     return response

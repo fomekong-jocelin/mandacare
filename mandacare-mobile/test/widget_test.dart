@@ -418,6 +418,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('bottom-nav-cashDesk')));
     await tester.pumpAndSettle();
 
+    expect(patientGateway.lastQueueStatus, PatientStatus.cashDesk);
+    expect(patientGateway.lastQueueLimit, 20);
     expect(find.text('Mamadou Sarr'), findsOneWidget);
     expect(find.textContaining('vers labo'), findsWidgets);
 
@@ -528,12 +530,21 @@ class FakePatientGateway implements PatientGateway {
   @override
   Future<List<PatientSummary>> listTodayQueue({
     required AuthSession session,
+    PatientStatus? status,
+    int limit = 8,
   }) async {
+    lastQueueStatus = status;
+    lastQueueLimit = limit;
     return _patients
         .map(_withCurrentStatus)
         .where((patient) => patient.status != PatientStatus.released)
+        .where((patient) => status == null || patient.status == status)
+        .take(limit)
         .toList(growable: false);
   }
+
+  PatientStatus? lastQueueStatus;
+  int? lastQueueLimit;
 
   @override
   Future<PatientSummary> createPatient({

@@ -49,9 +49,10 @@ class PatientController {
 
     @GetMapping("/queue/today")
     List<PatientResponse> todayQueue(
-            @RequestParam(defaultValue = "8") @Min(1) @Max(20) int limit
+            @RequestParam(defaultValue = "8") @Min(1) @Max(20) int limit,
+            @RequestParam(required = false) VisitStatus status
     ) {
-        return service.todayQueue(limit);
+        return service.todayQueue(limit, status);
     }
 
     @GetMapping("/{id}")

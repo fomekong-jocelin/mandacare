@@ -34,12 +34,14 @@ interface VisitRepository extends JpaRepository<VisitEntity, UUID> {
             where visit.arrivalAt >= :start
               and visit.arrivalAt < :end
               and visit.status <> :closedStatus
+              and (:status is null or visit.status = :status)
             order by visit.arrivalAt asc
             """)
     List<VisitEntity> findTodayQueue(
             @Param("start") Instant start,
             @Param("end") Instant end,
             @Param("closedStatus") VisitStatus closedStatus,
+            @Param("status") VisitStatus status,
             Pageable pageable
     );
 }

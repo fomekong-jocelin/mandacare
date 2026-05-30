@@ -61,12 +61,11 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
     try {
       final queue = await widget.patientGateway.listTodayQueue(
         session: widget.session,
+        status: PatientStatus.cashDesk,
+        limit: 20,
       );
-      final cashDeskPatients = queue
-          .where((patient) => patient.status == PatientStatus.cashDesk)
-          .toList(growable: false);
       final enrichedPatients = await Future.wait(
-        cashDeskPatients.map(_withConsultationDecision),
+        queue.map(_withConsultationDecision),
       );
       if (!mounted) {
         return;

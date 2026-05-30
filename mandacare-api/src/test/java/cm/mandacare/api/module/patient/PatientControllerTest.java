@@ -93,6 +93,52 @@ class PatientControllerTest {
     }
 
     @Test
+    void filtersTodayQueueByVisitStatus() throws Exception {
+        mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Queue", "Waiting", "+221 70 000 00 74")))
+                .andExpect(status().isCreated());
+
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Queue", "Cash", "+221 70 000 00 75")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Contrôle",
+                                  "clinicalExam": "Patient stable",
+                                  "diagnosis": "Sortie possible",
+                                  "advice": "Surveillance",
+                                  "decision": "RELEASE_PATIENT"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        mockMvc.perform(get("/api/v1/patients/queue/today")
+                        .with(user("cashier"))
+                        .param("status", "CASH_DESK")
+                        .param("limit", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].fullName", hasItem("Queue Cash")))
+                .andExpect(jsonPath("$[?(@.fullName == 'Queue Waiting')]", hasSize(0)))
+                .andExpect(jsonPath(
+                        "$[?(@.fullName == 'Queue Cash')].latestVisit.status",
+                        hasItem("CASH_DESK")
+                ));
+    }
+
+    @Test
     void createsVisitForExistingPatient() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
                         .with(user("doctor"))
