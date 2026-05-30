@@ -434,6 +434,65 @@ void main() {
     expect(patientGateway.statusFor(visitId), PatientStatus.lab);
     expect(find.text('Mamadou Sarr'), findsNothing);
   });
+
+  testWidgets('lab results form releases patient', (tester) async {
+    final patientGateway = FakePatientGateway();
+    const visitId = '10000000-0000-0000-0000-000000000002';
+
+    await patientGateway.createVitals(
+      session: session,
+      visitId: visitId,
+      payload: const CreateVitalsPayload(
+        temperature: 38.1,
+        systolicPressure: 132,
+        diastolicPressure: 86,
+        pulse: 84,
+        weight: 78,
+        height: 176,
+      ),
+    );
+    await patientGateway.createConsultation(
+      session: session,
+      visitId: visitId,
+      payload: const CreateConsultationPayload(
+        symptoms: 'Fièvre persistante',
+        clinicalExam: 'Patient fébrile',
+        diagnosis: 'Bilan infectieux',
+        advice: 'NFS et CRP',
+        decision: ConsultationDecision.sendToLab,
+        status: 'VALIDATED',
+      ),
+    );
+    await patientGateway.completeCashDesk(
+      session: session,
+      visitId: visitId,
+      payload: const CreateCashDeskPaymentPayload(amount: 15000, mode: 'CASH'),
+    );
+
+    await tester.pumpWidget(
+      MandaCareApp(initialSession: session, patientGateway: patientGateway),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-patients')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mamadou Sarr').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saisir les résultats labo'), findsOneWidget);
+    await tester.tap(find.text('Saisir les résultats labo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Résultat de laboratoire'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('lab-results-field')),
+      'GB 7200/mm3, Hb 13 g/dL',
+    );
+    await tester.tap(find.byKey(const ValueKey('release-patient-button')));
+    await tester.pumpAndSettle();
+
+    expect(patientGateway.statusFor(visitId), PatientStatus.released);
+  });
 }
 
 class FakeAuthGateway implements AuthGateway {

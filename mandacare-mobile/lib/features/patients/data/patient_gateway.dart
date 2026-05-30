@@ -409,10 +409,16 @@ class CreateLabResultPayload {
       'examType': examType,
       'results': results,
       'observations': observations?.trim(),
-      'sampleDate': sampleDate?.toIso8601String(),
+      'sampleDate': sampleDate == null ? null : _dateOnly(sampleDate!),
       'dossierNumber': dossierNumber?.trim(),
       'isNormal': isNormal,
     }..removeWhere((_, value) => value == null || value == '');
+  }
+
+  static String _dateOnly(DateTime value) {
+    return '${value.year.toString().padLeft(4, '0')}-'
+        '${value.month.toString().padLeft(2, '0')}-'
+        '${value.day.toString().padLeft(2, '0')}';
   }
 }
 

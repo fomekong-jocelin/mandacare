@@ -142,6 +142,7 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
   List<Widget> get _resultFields {
     return [
       CompactTextFormField(
+        key: const ValueKey('lab-results-field'),
         controller: _resultsController,
         label: 'Résultats',
         hintText: 'Saisir les résultats du laboratoire...',
@@ -203,10 +204,17 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
 
     setState(() => _saving = true);
     try {
-      await widget.patientGateway.changeVisitStatus(
+      await widget.patientGateway.submitLabResults(
         session: widget.session,
         visitId: widget.visitId,
-        status: PatientStatus.released,
+        payload: CreateLabResultPayload(
+          examType: _examType,
+          results: _normalResults ? _normalResultText : _resultsController.text,
+          observations: _notesController.text,
+          sampleDate: _sampleDate,
+          dossierNumber: _dossierNumber,
+          isNormal: _normalResults,
+        ),
       );
       if (!mounted) {
         return;
@@ -236,6 +244,8 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
   }
 
   static String _twoDigits(int value) => value.toString().padLeft(2, '0');
+
+  static const String _normalResultText = 'Résultats normaux';
 }
 
 // ---------------------------------------------------------------------------

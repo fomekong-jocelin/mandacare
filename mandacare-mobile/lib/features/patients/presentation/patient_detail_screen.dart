@@ -13,8 +13,9 @@ import '../../cashdesk/presentation/cashdesk_payment_sheet.dart';
 import '../data/patient_gateway.dart';
 import '../domain/patient_summary.dart';
 import '../domain/patient_timeline_item.dart';
-import '../../consultations/presentation/vitals_form_screen.dart';
 import '../../consultations/presentation/consultation_form_screen.dart';
+import '../../consultations/presentation/lab_results_form_screen.dart';
+import '../../consultations/presentation/vitals_form_screen.dart';
 import 'patient_visit_form_screen.dart';
 import 'widgets/patient_status_badge.dart';
 
@@ -549,6 +550,26 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     }
   }
 
+  Future<void> _openLabResultsForm() async {
+    if (_timeline.isEmpty) return;
+    final latestItem = _timeline.first;
+    final visitId = latestItem.visitId;
+
+    final completed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => LabResultsFormScreen(
+          session: widget.session,
+          patientGateway: widget.patientGateway,
+          patient: widget.patient,
+          visitId: visitId,
+        ),
+      ),
+    );
+    if (completed == true && mounted) {
+      await _loadTimeline();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -731,6 +752,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           _completeCashDeskStep();
         }
         break;
+      case 4:
+        if (_latestVisit?.status == PatientStatus.lab) {
+          _openLabResultsForm();
+        }
+        break;
       default:
         break;
     }
@@ -780,10 +806,11 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       );
     } else if (latestVisit.status == PatientStatus.lab) {
       actions.add(
-        const ActionTile(
+        ActionTile(
           icon: Icons.science_rounded,
-          title: 'En attente du laboratoire',
-          subtitle: 'Examens et résultats à traiter au laboratoire (Étape 5)',
+          title: 'Saisir les résultats labo',
+          subtitle: 'Valider les examens puis libérer le patient (Étape 5)',
+          onTap: _openLabResultsForm,
         ),
       );
     } else if (latestVisit.vitals == null) {

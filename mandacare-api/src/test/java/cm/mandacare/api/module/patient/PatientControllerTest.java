@@ -40,6 +40,9 @@ class PatientControllerTest {
     @Autowired
     private PaymentRepository payments;
 
+    @Autowired
+    private LabResultRepository labResults;
+
     @Test
     void createsPatientWithInitialVisit() throws Exception {
         mockMvc.perform(post("/api/v1/patients")
@@ -449,6 +452,73 @@ class PatientControllerTest {
     }
 
     @Test
+    void submitsLabResultsAndReleasesPatient() throws Exception {
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Lab", "Result", "+221 70 000 00 72")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/consultations", visitId)
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "symptoms": "Fièvre persistante",
+                                  "clinicalExam": "Patient fébrile",
+                                  "diagnosis": "Bilan infectieux",
+                                  "advice": "NFS et CRP",
+                                  "decision": "SEND_TO_LAB"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.visitStatus").value("CASH_DESK"));
+
+        mockMvc.perform(patch("/api/v1/visits/{id}/cash-desk/complete", visitId)
+                        .with(user("cashier"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cashPaymentJson()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latestVisit.status").value("LAB"));
+
+        long initialLabResultCount = labResults.count();
+
+        mockMvc.perform(post("/api/v1/visits/{id}/lab-results", visitId)
+                        .with(user("lab"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(labResultJson()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.latestVisit.id").value(visitId))
+                .andExpect(jsonPath("$.latestVisit.status").value("RELEASED"));
+
+        org.junit.jupiter.api.Assertions.assertEquals(initialLabResultCount + 1, labResults.count());
+    }
+
+    @Test
+    void rejectsLabResultsWhenVisitIsNotAtLab() throws Exception {
+        String patientBody = mockMvc.perform(post("/api/v1/patients")
+                        .with(user("doctor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validPatientJson("Not", "Lab", "+221 70 000 00 73")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String visitId = JsonPath.read(patientBody, "$.latestVisit.id");
+
+        mockMvc.perform(post("/api/v1/visits/{id}/lab-results", visitId)
+                        .with(user("lab"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(labResultJson()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VISIT_NOT_AT_LAB"));
+    }
+
+    @Test
     void rejectsCashDeskCompletionWithoutPayment() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
                         .with(user("doctor"))
@@ -842,6 +912,19 @@ class PatientControllerTest {
                   "amount": 15000,
                   "mode": "CASH",
                   "reference": "RECU-TEST"
+                }
+                """;
+    }
+
+    private String labResultJson() {
+        return """
+                {
+                  "examType": "Numération Formule Sanguine (NFS)",
+                  "results": "GB 7200/mm3, Hb 13 g/dL",
+                  "observations": "Résultats compatibles avec le contexte clinique",
+                  "sampleDate": "2026-05-30",
+                  "dossierNumber": "LAB-MC-TEST",
+                  "isNormal": false
                 }
                 """;
     }
