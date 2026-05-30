@@ -96,7 +96,7 @@ class VisitService {
         return switch (currentStatus) {
             case WAITING -> nextStatus == VisitStatus.IN_CONSULTATION;
             case CASH_DESK -> nextStatus == VisitStatus.IN_CONSULTATION;
-            case LAB -> nextStatus == VisitStatus.RELEASED;
+            case LAB -> nextStatus == VisitStatus.IN_CONSULTATION;
             case IN_CONSULTATION, RELEASED -> false;
         };
     }

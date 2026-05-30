@@ -46,7 +46,7 @@ class LabResultService {
                 nextResultNumber(),
                 request
         ));
-        visit.changeStatus(VisitStatus.RELEASED);
+        visit.changeStatus(VisitStatus.IN_CONSULTATION);
         return mapper.toResponse(visit.patient(), visit);
     }
 

@@ -473,7 +473,9 @@ void main() {
     expect(find.text('Mamadou Sarr'), findsNothing);
   });
 
-  testWidgets('lab results form releases patient', (tester) async {
+  testWidgets('lab results form returns patient to consultation', (
+    tester,
+  ) async {
     final patientGateway = FakePatientGateway();
     const visitId = '10000000-0000-0000-0000-000000000002';
 
@@ -526,10 +528,10 @@ void main() {
       find.byKey(const ValueKey('lab-results-field')),
       'GB 7200/mm3, Hb 13 g/dL',
     );
-    await tester.tap(find.byKey(const ValueKey('release-patient-button')));
+    await tester.tap(find.byKey(const ValueKey('submit-lab-results-button')));
     await tester.pumpAndSettle();
 
-    expect(patientGateway.statusFor(visitId), PatientStatus.released);
+    expect(patientGateway.statusFor(visitId), PatientStatus.inConsultation);
   });
 }
 
@@ -838,7 +840,7 @@ class FakePatientGateway implements PatientGateway {
     required CreateLabResultPayload payload,
   }) async {
     _labResultsByVisit[visitId] = payload;
-    _visitStatuses[visitId] = PatientStatus.released;
+    _visitStatuses[visitId] = PatientStatus.inConsultation;
   }
 
   PatientStatus? statusFor(String visitId) => _visitStatuses[visitId];

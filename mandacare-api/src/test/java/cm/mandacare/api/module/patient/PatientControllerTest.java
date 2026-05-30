@@ -233,7 +233,8 @@ class PatientControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestVisit.id").value(visitId))
-                .andExpect(jsonPath("$.latestVisit.status").value("IN_CONSULTATION"));
+                .andExpect(jsonPath("$.latestVisit.status")
+                        .value("IN_CONSULTATION"));
     }
 
     @Test
@@ -498,7 +499,7 @@ class PatientControllerTest {
     }
 
     @Test
-    void submitsLabResultsAndReleasesPatient() throws Exception {
+    void submitsLabResultsAndReturnsPatientToConsultation() throws Exception {
         String patientBody = mockMvc.perform(post("/api/v1/patients")
                         .with(user("doctor"))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -539,7 +540,7 @@ class PatientControllerTest {
                         .content(labResultJson()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.latestVisit.id").value(visitId))
-                .andExpect(jsonPath("$.latestVisit.status").value("RELEASED"));
+                .andExpect(jsonPath("$.latestVisit.status").value("IN_CONSULTATION"));
 
         org.junit.jupiter.api.Assertions.assertEquals(initialLabResultCount + 1, labResults.count());
     }

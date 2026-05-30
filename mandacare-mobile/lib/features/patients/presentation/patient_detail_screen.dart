@@ -809,7 +809,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         ActionTile(
           icon: Icons.science_rounded,
           title: 'Saisir les résultats labo',
-          subtitle: 'Valider les examens puis libérer le patient (Étape 5)',
+          subtitle: 'Valider les examens puis retour consultation (Étape 5)',
           onTap: _openLabResultsForm,
         ),
       );

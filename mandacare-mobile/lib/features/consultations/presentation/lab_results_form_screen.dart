@@ -91,7 +91,7 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: FilledButton.icon(
-                  key: const ValueKey('release-patient-button'),
+                  key: const ValueKey('submit-lab-results-button'),
                   onPressed: _saving ? null : _submit,
                   icon: _saving
                       ? const SizedBox(
@@ -103,7 +103,7 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
                   label: Text(
                     _saving
                         ? 'Validation en cours...'
-                        : 'Valider les résultats et libérer le patient',
+                        : 'Valider et renvoyer en consultation',
                   ),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
@@ -220,7 +220,9 @@ class _LabResultsFormScreenState extends State<LabResultsFormScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Résultats validés — patient libéré')),
+        const SnackBar(
+          content: Text('Résultats validés - retour en consultation'),
+        ),
       );
       Navigator.of(context).pop(true);
     } on ApiException catch (exception) {
