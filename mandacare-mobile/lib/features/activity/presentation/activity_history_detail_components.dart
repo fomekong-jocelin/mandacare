@@ -19,15 +19,16 @@ class _HeroSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
       decoration: BoxDecoration(
-        color: AppColors.deepHealthBlue,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.16)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.deepHealthBlue.withValues(alpha: 0.18),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
+            color: AppColors.deepHealthBlue.withValues(alpha: 0.045),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -40,8 +41,9 @@ class _HeroSummary extends StatelessWidget {
                 child: Text(
                   label,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.74),
-                    fontWeight: FontWeight.w800,
+                    color: accent,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0,
                   ),
                 ),
               ),
@@ -57,19 +59,21 @@ class _HeroSummary extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              height: 1.05,
+              color: AppColors.deepHealthBlue,
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              height: 1.08,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(
             meta,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.78),
-              fontWeight: FontWeight.w700,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+              height: 1.25,
             ),
           ),
         ],
@@ -88,20 +92,20 @@ class _HeroChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(maxWidth: 120),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.36)),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Text(
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: color,
           fontSize: 11,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -146,11 +150,11 @@ class _MetricPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(minHeight: 78),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(13, 12, 13, 11),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accent.withValues(alpha: 0.16)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.42)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,17 +166,17 @@ class _MetricPill extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: AppColors.textSecondary,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 6),
           Text(
             item.value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: AppColors.textPrimary,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -191,29 +195,29 @@ class _DetailSectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.50)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.38)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(section.icon, color: accent, size: 20),
-              const SizedBox(width: 8),
+              Icon(section.icon, color: accent, size: 18),
+              const SizedBox(width: 9),
               Text(
                 section.title,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: AppColors.deepHealthBlue,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           for (final row in section.rows) _DetailField(row: row),
         ],
       ),
@@ -229,7 +233,7 @@ class _DetailField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 15),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -239,7 +243,7 @@ class _DetailField extends StatelessWidget {
               row.label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.textSecondary,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -249,7 +253,8 @@ class _DetailField extends StatelessWidget {
               row.value,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: AppColors.textPrimary,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
+                height: 1.18,
               ),
             ),
           ),

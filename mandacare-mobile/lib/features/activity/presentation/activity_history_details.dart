@@ -8,7 +8,7 @@ void _showConsultationDetails(
     context,
     title: item.patientName,
     subtitle: '${item.patientNumber} · ${_formatDateTime(item.createdAt)}',
-    icon: Icons.medical_services_rounded,
+    icon: Icons.monitor_heart_rounded,
     accent: AppColors.medicalGreen,
     heroLabel: 'Diagnostic',
     heroValue: item.diagnosis,
@@ -131,7 +131,7 @@ class _ActivityDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
       child: Material(
         color: AppColors.lightBackground,
         child: SafeArea(
@@ -143,12 +143,11 @@ class _ActivityDetailSheet extends StatelessWidget {
                 child: _PremiumHeader(
                   title: title,
                   subtitle: subtitle,
-                  icon: icon,
                   accent: accent,
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 28),
                 sliver: SliverList.list(
                   children: [
                     _HeroSummary(
@@ -184,10 +183,10 @@ class _SheetHandle extends StatelessWidget {
     return Center(
       child: Container(
         width: 54,
-        height: 5,
-        margin: const EdgeInsets.only(top: 12, bottom: 8),
+        height: 4,
+        margin: const EdgeInsets.only(top: 12, bottom: 10),
         decoration: BoxDecoration(
-          color: AppColors.border,
+          color: AppColors.border.withValues(alpha: 0.72),
           borderRadius: BorderRadius.circular(999),
         ),
       ),
@@ -199,42 +198,39 @@ class _PremiumHeader extends StatelessWidget {
   const _PremiumHeader({
     required this.title,
     required this.subtitle,
-    required this.icon,
     required this.accent,
   });
 
   final String title;
   final String subtitle;
-  final IconData icon;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 10, 16, 18),
+      padding: const EdgeInsets.fromLTRB(20, 10, 12, 20),
       decoration: BoxDecoration(
         color: AppColors.lightBackground,
         boxShadow: [
           BoxShadow(
-            color: AppColors.deepHealthBlue.withValues(alpha: 0.05),
+            color: AppColors.deepHealthBlue.withValues(alpha: 0.035),
             blurRadius: 18,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 7),
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            width: 50,
-            height: 50,
+            width: 3,
+            height: 42,
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: accent.withValues(alpha: 0.18)),
+              color: accent,
+              borderRadius: BorderRadius.circular(999),
             ),
-            child: Icon(icon, color: accent, size: 25),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,19 +241,20 @@ class _PremiumHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: AppColors.deepHealthBlue,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w900,
-                    height: 1.05,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    height: 1.08,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
+                    height: 1.15,
                   ),
                 ),
               ],
@@ -265,7 +262,8 @@ class _PremiumHeader extends StatelessWidget {
           ),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded),
+            icon: const Icon(Icons.close_rounded, size: 25),
+            color: AppColors.textPrimary,
           ),
         ],
       ),
