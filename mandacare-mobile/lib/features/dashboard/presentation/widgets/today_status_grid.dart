@@ -57,9 +57,11 @@ class TodayStatusGrid extends StatelessWidget {
     return [
       _StatusCard(
         key: const ValueKey('dashboard-status-card-patients'),
-        title: 'Patients',
+        title: 'Patients du jour',
         value: loadingValue ?? _formatNumber(summary.patientsToday),
-        subtitle: loading ? 'Chargement' : "Visites d'aujourd'hui",
+        subtitle: loading
+            ? 'Chargement'
+            : '${summary.activeQueue} dossier(s) actif(s)',
         icon: Icons.group_add_rounded,
         background: const Color(0xFFEAF4FF),
         accent: AppColors.info,
@@ -68,8 +70,10 @@ class TodayStatusGrid extends StatelessWidget {
       _StatusCard(
         key: const ValueKey('dashboard-status-card-consultations'),
         title: 'Consultations',
-        value: loadingValue ?? _formatNumber(summary.consultationsToday),
-        subtitle: loading ? 'Chargement' : 'Actes médicaux saisis',
+        value: loadingValue ?? _formatNumber(summary.consultationQueue),
+        subtitle: loading
+            ? 'Chargement'
+            : '${summary.consultationsToday} acte(s) saisi(s)',
         icon: Icons.medical_services_rounded,
         background: const Color(0xFFEAF6F1),
         accent: AppColors.medicalGreen,
@@ -78,7 +82,7 @@ class TodayStatusGrid extends StatelessWidget {
       _StatusCard(
         key: const ValueKey('dashboard-status-card-lab'),
         title: 'Labo',
-        value: loadingValue ?? _formatNumber(summary.pendingExams),
+        value: loadingValue ?? _formatNumber(summary.labQueue),
         subtitle: loading
             ? 'Chargement'
             : '${summary.validatedResults} résultat(s) validé(s)',
@@ -90,10 +94,10 @@ class TodayStatusGrid extends StatelessWidget {
       _StatusCard(
         key: const ValueKey('dashboard-status-card-cash-desk'),
         title: 'Caisse',
-        value: loadingValue ?? _formatFcfa(summary.dailyRevenue),
+        value: loadingValue ?? _formatNumber(summary.cashDeskQueue),
         subtitle: loading
             ? 'Chargement'
-            : '${summary.unpaidInvoices} facture(s) ouverte(s)',
+            : '${_formatFcfa(summary.dailyRevenue)} encaissé(s)',
         icon: Icons.point_of_sale_rounded,
         background: const Color(0xFFF6F0DE),
         accent: AppColors.premiumGold,

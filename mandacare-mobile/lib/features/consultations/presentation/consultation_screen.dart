@@ -5,6 +5,9 @@ import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/layout/adaptive_layout.dart';
 import '../../../shared/presentation/widgets/feature_header.dart';
 import '../../../shared/presentation/widgets/metric_strip.dart';
+import '../../activity/data/activity_history_gateway.dart';
+import '../../activity/domain/activity_history_item.dart';
+import '../../activity/presentation/activity_history_widgets.dart';
 import '../../auth/domain/auth_session.dart';
 import '../../patients/data/patient_gateway.dart';
 import '../../patients/domain/patient_summary.dart';
@@ -31,18 +34,24 @@ class ConsultationScreen extends StatefulWidget {
 
 class _ConsultationScreenState extends State<ConsultationScreen> {
   final List<PatientSummary> _patients = [];
+  final List<ConsultationHistoryItem> _history = [];
 
+  late ActivityHistoryGateway _activityGateway;
   PatientSummary? _selectedPatient;
   VitalsSummary? _selectedVitals;
   String? _screenError;
   String? _vitalsError;
+  String? _historyError;
+  int _selectedSegment = 0;
   bool _loadingPatients = true;
   bool _loadingVitals = false;
+  bool _loadingHistory = false;
   int _vitalsRequestId = 0;
 
   @override
   void initState() {
     super.initState();
+    _activityGateway = activityHistoryGatewayFor(widget.patientGateway);
     _loadConsultations();
   }
 
@@ -52,7 +61,11 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     if (oldWidget.session != widget.session ||
         oldWidget.patientGateway != widget.patientGateway ||
         oldWidget.refreshRequestId != widget.refreshRequestId) {
+      _activityGateway = activityHistoryGatewayFor(widget.patientGateway);
       _loadConsultations();
+      if (_selectedSegment == 1) {
+        _loadHistory();
+      }
     }
   }
 
@@ -103,8 +116,27 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
 
   List<Widget> _contentItems() {
     final selectedPatient = _selectedPatient;
+    final header = ActivitySegmentedHeader(
+      selectedIndex: _selectedSegment,
+      onSelectionChanged: _selectSegment,
+    );
+
+    if (_selectedSegment == 1) {
+      return [
+        header,
+        const SizedBox(height: 14),
+        ConsultationHistoryList(
+          items: _history,
+          loading: _loadingHistory,
+          error: _historyError,
+          onRetry: _loadHistory,
+        ),
+      ];
+    }
 
     return [
+      header,
+      const SizedBox(height: 14),
       MetricStrip(
         items: [
           MetricStripItem(
@@ -158,6 +190,13 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     ];
   }
 
+  void _selectSegment(int value) {
+    setState(() => _selectedSegment = value);
+    if (value == 1 && _history.isEmpty && !_loadingHistory) {
+      _loadHistory();
+    }
+  }
+
   Future<void> _loadConsultations() async {
     setState(() {
       _loadingPatients = true;
@@ -198,6 +237,35 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
         _vitalsError = null;
         _screenError = _friendlyError(error);
         _loadingPatients = false;
+      });
+    }
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _loadingHistory = true;
+      _historyError = null;
+    });
+    try {
+      final history = await _activityGateway.listConsultations(
+        session: widget.session,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _history
+          ..clear()
+          ..addAll(history);
+        _loadingHistory = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _historyError = "Impossible de charger l'historique.";
+        _loadingHistory = false;
       });
     }
   }

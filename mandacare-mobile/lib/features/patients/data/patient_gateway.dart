@@ -93,9 +93,7 @@ abstract class PatientGateway {
     required CreateLabResultPayload payload,
   });
 
-  Future<List<Exam>> listActiveExams({
-    required AuthSession session,
-  });
+  Future<List<Exam>> listActiveExams({required AuthSession session});
 
   Future<InvoicePreview> getInvoicePreview({
     required AuthSession session,
@@ -128,7 +126,9 @@ abstract class PatientGateway {
   Future<DailyReport> getDailyReport({required AuthSession session});
 
   // Support & Assistance
-  Future<List<SupportTicket>> getMySupportTickets({required AuthSession session});
+  Future<List<SupportTicket>> getMySupportTickets({
+    required AuthSession session,
+  });
   Future<SupportTicket> createSupportTicket({
     required AuthSession session,
     required String subject,
@@ -348,9 +348,7 @@ class BackendPatientGateway implements PatientGateway {
   }
 
   @override
-  Future<List<Exam>> listActiveExams({
-    required AuthSession session,
-  }) async {
+  Future<List<Exam>> listActiveExams({required AuthSession session}) async {
     final response = await apiClient.getJsonList(
       '/exams',
       token: session.accessToken,
@@ -389,7 +387,9 @@ class BackendPatientGateway implements PatientGateway {
   }
 
   @override
-  Future<List<PharmacyItem>> getPharmacyItems({required AuthSession session}) async {
+  Future<List<PharmacyItem>> getPharmacyItems({
+    required AuthSession session,
+  }) async {
     final response = await apiClient.getJsonList(
       '/pharmacy',
       token: session.accessToken,
@@ -407,14 +407,10 @@ class BackendPatientGateway implements PatientGateway {
     required int quantity,
     required String reason,
   }) async {
-    final response = await apiClient.postJson(
-      '/pharmacy/$id/stock',
-      {
-        'quantity': quantity,
-        'reason': reason,
-      },
-      token: session.accessToken,
-    );
+    final response = await apiClient.postJson('/pharmacy/$id/stock', {
+      'quantity': quantity,
+      'reason': reason,
+    }, token: session.accessToken);
     return PharmacyItem.fromJson(response);
   }
 
@@ -427,17 +423,13 @@ class BackendPatientGateway implements PatientGateway {
     required double price,
     required int alertThreshold,
   }) async {
-    final response = await apiClient.postJson(
-      '/pharmacy',
-      {
-        'code': code,
-        'label': label,
-        'dosage': dosage,
-        'price': price,
-        'alertThreshold': alertThreshold,
-      },
-      token: session.accessToken,
-    );
+    final response = await apiClient.postJson('/pharmacy', {
+      'code': code,
+      'label': label,
+      'dosage': dosage,
+      'price': price,
+      'alertThreshold': alertThreshold,
+    }, token: session.accessToken);
     return PharmacyItem.fromJson(response);
   }
 
@@ -451,7 +443,9 @@ class BackendPatientGateway implements PatientGateway {
   }
 
   @override
-  Future<List<SupportTicket>> getMySupportTickets({required AuthSession session}) async {
+  Future<List<SupportTicket>> getMySupportTickets({
+    required AuthSession session,
+  }) async {
     final response = await apiClient.getJsonList(
       '/support/tickets/mine',
       token: session.accessToken,
@@ -470,16 +464,12 @@ class BackendPatientGateway implements PatientGateway {
     required String category,
     required String priority,
   }) async {
-    final response = await apiClient.postJson(
-      '/support/tickets',
-      {
-        'subject': subject,
-        'description': description,
-        'category': category,
-        'priority': priority,
-      },
-      token: session.accessToken,
-    );
+    final response = await apiClient.postJson('/support/tickets', {
+      'subject': subject,
+      'description': description,
+      'category': category,
+      'priority': priority,
+    }, token: session.accessToken);
     return SupportTicket.fromJson(response);
   }
 }
@@ -753,6 +743,11 @@ class _DashboardTodaySummaryMapper {
   static DashboardTodaySummary fromJson(Map<String, dynamic> json) {
     return DashboardTodaySummary(
       patientsToday: _int(json['patientsToday']),
+      activeQueue: _int(json['activeQueue']),
+      waitingQueue: _int(json['waitingQueue']),
+      consultationQueue: _int(json['consultationQueue']),
+      cashDeskQueue: _int(json['cashDeskQueue']),
+      labQueue: _int(json['labQueue']),
       consultationsToday: _int(json['consultationsToday']),
       pendingExams: _int(json['pendingExams']),
       validatedResults: _int(json['validatedResults']),

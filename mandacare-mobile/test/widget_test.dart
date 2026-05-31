@@ -554,7 +554,9 @@ void main() {
     expect(patientGateway.statusFor(visitId), PatientStatus.inConsultation);
   });
 
-  testWidgets('modifying constants loads existing vitals values', (tester) async {
+  testWidgets('modifying constants loads existing vitals values', (
+    tester,
+  ) async {
     final patientGateway = FakePatientGateway();
     const visitId = '10000000-0000-0000-0000-000000000001'; // Awa Diop
     await patientGateway.createVitals(
@@ -604,72 +606,77 @@ void main() {
     expect(tester.widget<TextField>(weightFinder).controller?.text, '65.0');
   });
 
-  testWidgets('modifying consultation restores selected exams list from invoice', (tester) async {
-    final patientGateway = FakePatientGateway();
-    const visitId = '10000000-0000-0000-0000-000000000002'; // Mamadou Sarr
+  testWidgets(
+    'modifying consultation restores selected exams list from invoice',
+    (tester) async {
+      final patientGateway = FakePatientGateway();
+      const visitId = '10000000-0000-0000-0000-000000000002'; // Mamadou Sarr
 
-    await patientGateway.createVitals(
-      session: session,
-      visitId: visitId,
-      payload: const CreateVitalsPayload(
-        temperature: 37.2,
-        systolicPressure: 120,
-        diastolicPressure: 80,
-      ),
-    );
+      await patientGateway.createVitals(
+        session: session,
+        visitId: visitId,
+        payload: const CreateVitalsPayload(
+          temperature: 37.2,
+          systolicPressure: 120,
+          diastolicPressure: 80,
+        ),
+      );
 
-    await patientGateway.createConsultation(
-      session: session,
-      visitId: visitId,
-      payload: const CreateConsultationPayload(
-        symptoms: 'Maux de tête',
-        clinicalExam: 'Normal',
-        diagnosis: 'Migraine',
-        advice: 'NFS',
-        decision: ConsultationDecision.sendToLab,
-        status: 'VALIDATED',
-      ),
-    );
+      await patientGateway.createConsultation(
+        session: session,
+        visitId: visitId,
+        payload: const CreateConsultationPayload(
+          symptoms: 'Maux de tête',
+          clinicalExam: 'Normal',
+          diagnosis: 'Migraine',
+          advice: 'NFS',
+          decision: ConsultationDecision.sendToLab,
+          status: 'VALIDATED',
+        ),
+      );
 
-    await tester.pumpWidget(
-      MandaCareApp(initialSession: session, patientGateway: patientGateway),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MandaCareApp(initialSession: session, patientGateway: patientGateway),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('bottom-nav-patients')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Mamadou Sarr').first);
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('bottom-nav-patients')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mamadou Sarr').first);
+      await tester.pumpAndSettle();
 
-    final modifierConsultFinder = find.text('Modifier la consultation');
-    await tester.scrollUntilVisible(
-      modifierConsultFinder,
-      100,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.pumpAndSettle();
+      final modifierConsultFinder = find.text('Modifier la consultation');
+      await tester.scrollUntilVisible(
+        modifierConsultFinder,
+        100,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tester.pumpAndSettle();
 
-    expect(modifierConsultFinder, findsOneWidget);
-    await tester.tap(modifierConsultFinder);
-    await tester.pumpAndSettle();
+      expect(modifierConsultFinder, findsOneWidget);
+      await tester.tap(modifierConsultFinder);
+      await tester.pumpAndSettle();
 
-    final examTileFinder = find.byKey(const ValueKey('exam-tile-NFS'));
-    await tester.scrollUntilVisible(
-      examTileFinder,
-      100,
-      scrollable: find.descendant(
-        of: find.byKey(const ValueKey('consultation-form-scroll')),
-        matching: find.byType(Scrollable),
-      ).first,
-    );
-    await tester.pumpAndSettle();
+      final examTileFinder = find.byKey(const ValueKey('exam-tile-NFS'));
+      await tester.scrollUntilVisible(
+        examTileFinder,
+        100,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const ValueKey('consultation-form-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
 
-    // The mock active exams list has 'NFS'. Since our mock invoice has EXAM 'NFS',
-    // it should be automatically checked!
-    expect(find.text('NFS'), findsWidgets);
-    final checkboxTile = tester.widget<CheckboxListTile>(examTileFinder);
-    expect(checkboxTile.value, isTrue);
-  });
+      // The mock active exams list has 'NFS'. Since our mock invoice has EXAM 'NFS',
+      // it should be automatically checked!
+      expect(find.text('NFS'), findsWidgets);
+      final checkboxTile = tester.widget<CheckboxListTile>(examTileFinder);
+      expect(checkboxTile.value, isTrue);
+    },
+  );
 }
 
 class FakeAuthGateway implements AuthGateway {
@@ -736,6 +743,21 @@ class FakePatientGateway implements PatientGateway {
 
     return DashboardTodaySummary(
       patientsToday: todayPatients.length,
+      activeQueue: todayPatients
+          .where((patient) => patient.status != PatientStatus.released)
+          .length,
+      waitingQueue: todayPatients
+          .where((patient) => patient.status == PatientStatus.waiting)
+          .length,
+      consultationQueue: todayPatients
+          .where((patient) => patient.status == PatientStatus.inConsultation)
+          .length,
+      cashDeskQueue: todayPatients
+          .where((patient) => patient.status == PatientStatus.cashDesk)
+          .length,
+      labQueue: todayPatients
+          .where((patient) => patient.status == PatientStatus.lab)
+          .length,
       consultationsToday: todayPatients
           .where((patient) => patient.status != PatientStatus.waiting)
           .length,
@@ -1086,13 +1108,42 @@ class FakePatientGateway implements PatientGateway {
 
   // Stock Pharmacie (Simulation)
   final List<PharmacyItem> _pharmacyItems = [
-    const PharmacyItem(id: '1', code: 'PARACET500', label: 'Paracétamol', dosage: '500mg', price: 500.00, stockQuantity: 50, alertThreshold: 10, critical: false),
-    const PharmacyItem(id: '2', code: 'AMOXICILLIN', label: 'Amoxicilline', dosage: '1g', price: 1500.00, stockQuantity: 3, alertThreshold: 5, critical: true),
-    const PharmacyItem(id: '3', code: 'IBUPROFEN', label: 'Ibuprofène', dosage: '400mg', price: 800.00, stockQuantity: 20, alertThreshold: 5, critical: false),
+    const PharmacyItem(
+      id: '1',
+      code: 'PARACET500',
+      label: 'Paracétamol',
+      dosage: '500mg',
+      price: 500.00,
+      stockQuantity: 50,
+      alertThreshold: 10,
+      critical: false,
+    ),
+    const PharmacyItem(
+      id: '2',
+      code: 'AMOXICILLIN',
+      label: 'Amoxicilline',
+      dosage: '1g',
+      price: 1500.00,
+      stockQuantity: 3,
+      alertThreshold: 5,
+      critical: true,
+    ),
+    const PharmacyItem(
+      id: '3',
+      code: 'IBUPROFEN',
+      label: 'Ibuprofène',
+      dosage: '400mg',
+      price: 800.00,
+      stockQuantity: 20,
+      alertThreshold: 5,
+      critical: false,
+    ),
   ];
 
   @override
-  Future<List<PharmacyItem>> getPharmacyItems({required AuthSession session}) async {
+  Future<List<PharmacyItem>> getPharmacyItems({
+    required AuthSession session,
+  }) async {
     return _pharmacyItems;
   }
 
@@ -1151,7 +1202,13 @@ class FakePatientGateway implements PatientGateway {
   Future<DailyReport> getDailyReport({required AuthSession session}) async {
     return const DailyReport(
       totalPatientsToday: 15,
-      patientsByStatus: {'waiting': 5, 'inConsultation': 3, 'cashDesk': 2, 'lab': 3, 'released': 2},
+      patientsByStatus: {
+        'waiting': 5,
+        'inConsultation': 3,
+        'cashDesk': 2,
+        'lab': 3,
+        'released': 2,
+      },
       revenueByPaymentMode: {'Espèces': 45000.0, 'Mobile Money': 25000.0},
       totalRevenue: 70000.0,
       topPrescribedExams: {'NFS': 8, 'Biochimie': 5, 'Parasitologie': 3},
@@ -1162,7 +1219,9 @@ class FakePatientGateway implements PatientGateway {
   final List<SupportTicket> _supportTickets = [];
 
   @override
-  Future<List<SupportTicket>> getMySupportTickets({required AuthSession session}) async {
+  Future<List<SupportTicket>> getMySupportTickets({
+    required AuthSession session,
+  }) async {
     return _supportTickets;
   }
 

@@ -32,6 +32,36 @@ class DashboardService {
                         """, start, end),
                 count("""
                         select count(*)
+                        from visits
+                        where status <> 'RELEASED'
+                          and arrival_at >= ? and arrival_at < ?
+                        """, start, end),
+                count("""
+                        select count(*)
+                        from visits
+                        where status = 'WAITING'
+                          and arrival_at >= ? and arrival_at < ?
+                        """, start, end),
+                count("""
+                        select count(*)
+                        from visits
+                        where status = 'IN_CONSULTATION'
+                          and arrival_at >= ? and arrival_at < ?
+                        """, start, end),
+                count("""
+                        select count(*)
+                        from visits
+                        where status = 'CASH_DESK'
+                          and arrival_at >= ? and arrival_at < ?
+                        """, start, end),
+                count("""
+                        select count(*)
+                        from visits
+                        where status = 'LAB'
+                          and arrival_at >= ? and arrival_at < ?
+                        """, start, end),
+                count("""
+                        select count(*)
                         from consultations
                         where created_at >= ? and created_at < ?
                         """, start, end),
