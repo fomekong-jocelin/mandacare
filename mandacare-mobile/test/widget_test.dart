@@ -775,7 +775,7 @@ void main() {
     expect(find.text('Dr Manda'), findsOneWidget);
 
     // 4. Tap edit button
-    await tester.tap(find.text('Modifier mes informations'));
+    await tester.tap(find.byTooltip('Modifier le profil'));
     await tester.pumpAndSettle();
 
     // 5. Fill edit profile form
