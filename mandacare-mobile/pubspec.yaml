@@ -63,6 +63,7 @@ flutter:
   assets:
     - assets/brand/mandacare_logo_horizontal.png
     - assets/brand/login_background.png
+    - assets/help/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

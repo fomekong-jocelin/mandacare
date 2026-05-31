@@ -15,6 +15,7 @@ import '../../dashboard/presentation/dashboard_report_screen.dart';
 import '../data/clinic_gateway.dart';
 import 'clinic_settings_screen.dart';
 import 'support_ticket_screen.dart';
+import 'help_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({
@@ -127,8 +128,15 @@ class MoreScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       ActionTile(
-                        icon: Icons.help_outline_rounded,
-                        title: 'Support',
+                        icon: Icons.help_center_rounded,
+                        title: 'Centre d\'aide',
+                        subtitle: 'Guide d\'utilisation et captures d\'écran',
+                        onTap: () => _openHelp(context),
+                      ),
+                      const SizedBox(height: 10),
+                      ActionTile(
+                        icon: Icons.contact_support_rounded,
+                        title: 'Support technique',
                         subtitle: 'Assistance technique et tickets',
                         onTap: () => _openSupport(context),
                       ),
@@ -203,6 +211,14 @@ class MoreScreen extends StatelessWidget {
           session: session,
           patientGateway: patientGateway,
         ),
+      ),
+    );
+  }
+
+  void _openHelp(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const HelpScreen(),
       ),
     );
   }
