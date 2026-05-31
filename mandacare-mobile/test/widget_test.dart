@@ -22,6 +22,7 @@ import 'package:mandacare_mobile/features/users/domain/team_user.dart';
 import 'package:mandacare_mobile/features/users/domain/user_payload.dart';
 import 'package:mandacare_mobile/features/users/domain/user_role.dart';
 import 'package:mandacare_mobile/app/mandacare_app.dart';
+import 'package:mandacare_mobile/features/more/data/clinic_gateway.dart';
 
 void main() {
   const session = AuthSession(
@@ -32,11 +33,12 @@ void main() {
     roleLabel: 'Administrateur',
   );
 
-  Widget appWithSession() {
+  Widget appWithSession({ClinicGateway? clinicGateway}) {
     return MandaCareApp(
       initialSession: session,
       patientGateway: FakePatientGateway(),
       userGateway: FakeUserGateway(),
+      clinicGateway: clinicGateway ?? const FakeClinicGateway(),
     );
   }
 
@@ -62,6 +64,25 @@ void main() {
     expect(find.text('Bonjour, Dr Manda'), findsOneWidget);
     expect(find.text('Accès rapide'), findsOneWidget);
     expect(find.text("File d'attente"), findsOneWidget);
+  });
+
+  testWidgets('dashboard handles very long username without issues', (tester) async {
+    final longSession = const AuthSession(
+      accessToken: 'test-token',
+      username: 'admin',
+      displayName: 'Dr. Jean-Pierre de la Tour-du-Pin-Chambly de La Charce-Montmorency',
+      roleCode: 'ADMIN',
+      roleLabel: 'Administrateur Principal de la Clinique MandaCare',
+    );
+    await tester.pumpWidget(MandaCareApp(
+      initialSession: longSession,
+      patientGateway: FakePatientGateway(),
+      userGateway: FakeUserGateway(),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bonjour, Dr. Jean-Pierre de la Tour-du-Pin-Chambly de La Charce-Montmorency'), findsOneWidget);
+    expect(find.text('Administrateur Principal de la Clinique MandaCare'), findsOneWidget);
   });
 
   testWidgets('dashboard patient action opens creation form', (tester) async {
@@ -677,6 +698,64 @@ void main() {
       expect(checkboxTile.value, isTrue);
     },
   );
+
+  testWidgets('admin can navigate to database maintenance and purge database', (tester) async {
+    await tester.pumpWidget(appWithSession());
+    await tester.pumpAndSettle();
+
+    // 1. Switch to "more" tab
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-more')));
+    await tester.pumpAndSettle();
+
+    // 2. Verify "Maintenance base" is present by scrolling to it
+    final tileFinder = find.text('Maintenance base');
+    await tester.scrollUntilVisible(
+      tileFinder,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(tileFinder);
+    await tester.pumpAndSettle();
+
+    // 3. Verify screen title and caution list
+    expect(find.text('ATTENTION : ACTION IRRÉVERSIBLE'), findsOneWidget);
+    expect(find.text('Dossiers patients complets'), findsOneWidget);
+
+    // 4. Verify button is disabled initially
+    final buttonFinder = find.widgetWithText(ElevatedButton, 'Purger la base de données');
+    expect(tester.widget<ElevatedButton>(buttonFinder).onPressed, isNull);
+
+    // 5. Enter wrong confirm word
+    await tester.enterText(find.byType(TextField), 'WRONG_CONFIRM');
+    await tester.pumpAndSettle();
+    expect(tester.widget<ElevatedButton>(buttonFinder).onPressed, isNull);
+
+    // 6. Enter correct confirm word "PURGER"
+    await tester.enterText(find.byType(TextField), 'PURGER');
+    await tester.pumpAndSettle();
+    expect(tester.widget<ElevatedButton>(buttonFinder).onPressed, isNotNull);
+
+    // 7. Execute purge
+    await tester.scrollUntilVisible(
+      buttonFinder,
+      50,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(buttonFinder);
+    await tester.pump(); // Start execution
+    await tester.pumpAndSettle(const Duration(milliseconds: 700)); // wait for FakeClinicGateway delay
+
+    // 8. Verify success dialog
+    expect(find.text('Purge réussie'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // 9. Verify we are back on more tab
+    expect(find.text('Compte, rôle et modules'), findsOneWidget);
+  });
 }
 
 class FakeAuthGateway implements AuthGateway {

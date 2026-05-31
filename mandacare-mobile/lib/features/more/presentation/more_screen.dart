@@ -16,6 +16,7 @@ import '../data/clinic_gateway.dart';
 import 'clinic_settings_screen.dart';
 import 'support_ticket_screen.dart';
 import 'help_screen.dart';
+import 'database_maintenance_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({
@@ -126,6 +127,15 @@ class MoreScreen extends StatelessWidget {
                         subtitle: 'Paramètres et informations officielles',
                         onTap: () => _openClinic(context),
                       ),
+                      if (session.roleCode == 'ADMIN') ...[
+                        const SizedBox(height: 10),
+                        ActionTile(
+                          icon: Icons.delete_forever_rounded,
+                          title: 'Maintenance base',
+                          subtitle: 'Purger et réinitialiser les données patient',
+                          onTap: () => _openDatabaseMaintenance(context),
+                        ),
+                      ],
                       const SizedBox(height: 10),
                       ActionTile(
                         icon: Icons.help_center_rounded,
@@ -175,6 +185,17 @@ class MoreScreen extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ClinicSettingsScreen(
+          session: session,
+          clinicGateway: clinicGateway,
+        ),
+      ),
+    );
+  }
+
+  void _openDatabaseMaintenance(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DatabaseMaintenanceScreen(
           session: session,
           clinicGateway: clinicGateway,
         ),

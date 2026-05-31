@@ -45,6 +45,7 @@ abstract class ClinicGateway {
     required AuthSession session,
     required ClinicSettings settings,
   });
+  Future<void> purgeDatabase({required AuthSession session});
 }
 
 class BackendClinicGateway implements ClinicGateway {
@@ -79,6 +80,15 @@ class BackendClinicGateway implements ClinicGateway {
     }, token: session.accessToken);
     return ClinicSettings.fromJson(json);
   }
+
+  @override
+  Future<void> purgeDatabase({required AuthSession session}) async {
+    await apiClient.postJson(
+      '/settings/database/purge',
+      {},
+      token: session.accessToken,
+    );
+  }
 }
 
 class FakeClinicGateway implements ClinicGateway {
@@ -101,5 +111,10 @@ class FakeClinicGateway implements ClinicGateway {
     required ClinicSettings settings,
   }) async {
     return settings;
+  }
+
+  @override
+  Future<void> purgeDatabase({required AuthSession session}) async {
+    await Future.delayed(const Duration(milliseconds: 600));
   }
 }

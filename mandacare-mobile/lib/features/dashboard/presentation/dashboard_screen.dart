@@ -427,7 +427,7 @@ class _GreetingText extends StatelessWidget {
         Text(
           'Bonjour, $connectedUserName',
           maxLines: 1,
-          overflow: TextOverflow.fade,
+          overflow: TextOverflow.ellipsis,
           softWrap: false,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             color: AppColors.deepHealthBlue,
@@ -439,7 +439,7 @@ class _GreetingText extends StatelessWidget {
         Text(
           connectedUserRole,
           maxLines: 1,
-          overflow: TextOverflow.fade,
+          overflow: TextOverflow.ellipsis,
           softWrap: false,
           style: Theme.of(
             context,
