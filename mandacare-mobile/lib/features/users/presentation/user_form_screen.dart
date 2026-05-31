@@ -342,7 +342,11 @@ class _RoleDropdown extends StatelessWidget {
             for (final role in roles)
               DropdownMenuItem<String>(
                 value: role.code,
-                child: Text(role.label),
+                child: Text(
+                  role.label,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
           ],
         ),

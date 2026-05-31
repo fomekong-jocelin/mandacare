@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/widgets/compact_form_field.dart';
+import '../../../shared/presentation/widgets/form_dialog.dart';
+import '../../../shared/presentation/widgets/metric_strip.dart';
 import '../../../shared/presentation/widgets/page_header.dart';
 import '../../auth/domain/auth_session.dart';
 import '../../patients/data/patient_gateway.dart';
@@ -38,7 +40,9 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
       _error = null;
     });
     try {
-      final data = await widget.patientGateway.getPharmacyItems(session: widget.session);
+      final data = await widget.patientGateway.getPharmacyItems(
+        session: widget.session,
+      );
       if (!mounted) return;
       setState(() {
         _items = data;
@@ -77,129 +81,115 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 450),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Form(
-                    key: formKey,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.add_business_rounded, color: AppColors.medicalGreen, size: 28),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Nouveau médicament',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  color: AppColors.deepHealthBlue,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Divider(height: 24),
-                          CompactTextFormField(
-                            controller: codeController,
-                            label: 'Code (ex: PARACET500)',
-                            icon: Icons.qr_code_rounded,
-                            textCapitalization: TextCapitalization.characters,
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-                          ),
-                          const SizedBox(height: 12),
-                          CompactTextFormField(
-                            controller: labelController,
-                            label: 'Nom du médicament',
-                            icon: Icons.label_important_rounded,
-                            textCapitalization: TextCapitalization.sentences,
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-                          ),
-                          const SizedBox(height: 12),
-                          CompactTextFormField(
-                            controller: dosageController,
-                            label: 'Dosage (ex: 500mg, 1g)',
-                            icon: Icons.scale_rounded,
-                          ),
-                          const SizedBox(height: 12),
-                          CompactTextFormField(
+            return AppFormDialog(
+              title: 'Nouveau médicament',
+              subtitle: 'Ajouter une référence au catalogue pharmacie',
+              icon: Icons.local_pharmacy_rounded,
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CompactTextFormField(
+                      controller: codeController,
+                      label: 'Code',
+                      hintText: 'Ex: PARACET500',
+                      icon: Icons.qr_code_rounded,
+                      textInputAction: TextInputAction.next,
+                      textCapitalization: TextCapitalization.characters,
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    CompactTextFormField(
+                      controller: labelController,
+                      label: 'Nom du médicament',
+                      icon: Icons.label_important_rounded,
+                      textInputAction: TextInputAction.next,
+                      textCapitalization: TextCapitalization.sentences,
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    CompactTextFormField(
+                      controller: dosageController,
+                      label: 'Dosage',
+                      hintText: 'Ex: 500mg, 1g',
+                      icon: Icons.scale_rounded,
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: CompactTextFormField(
                             controller: priceController,
-                            label: 'Prix de vente (FCFA)',
+                            label: 'Prix de vente',
+                            hintText: 'FCFA',
                             icon: Icons.payments_rounded,
                             keyboardType: TextInputType.number,
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Requis';
-                              if (double.tryParse(v) == null) return 'Nombre invalide';
-                              return null;
-                            },
+                            textInputAction: TextInputAction.next,
+                            validator: _positiveNumberRequired,
                           ),
-                          const SizedBox(height: 12),
-                          CompactTextFormField(
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: CompactTextFormField(
                             controller: thresholdController,
-                            label: 'Seuil alerte critique',
+                            label: 'Seuil alerte',
                             icon: Icons.warning_amber_rounded,
                             keyboardType: TextInputType.number,
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Requis';
-                              if (int.tryParse(v) == null) return 'Entier invalide';
-                              return null;
-                            },
+                            textInputAction: TextInputAction.done,
+                            validator: _integerRequired,
                           ),
-                          const SizedBox(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              TextButton(
-                                onPressed: saving ? null : () => Navigator.of(dialogContext).pop(),
-                                child: const Text('Annuler', style: TextStyle(color: AppColors.textSecondary)),
-                              ),
-                              const SizedBox(width: 8),
-                              FilledButton.icon(
-                                onPressed: saving
-                                    ? null
-                                    : () async {
-                                        if (!formKey.currentState!.validate()) return;
-                                        setDialogState(() => saving = true);
-                                        try {
-                                          await widget.patientGateway.createPharmacyItem(
-                                            session: widget.session,
-                                            code: codeController.text.trim(),
-                                            label: labelController.text.trim(),
-                                            dosage: dosageController.text.isEmpty ? null : dosageController.text.trim(),
-                                            price: double.parse(priceController.text),
-                                            alertThreshold: int.parse(thresholdController.text),
-                                          );
-                                          Navigator.of(dialogContext).pop();
-                                          _loadItems();
-                                        } catch (_) {
-                                          setDialogState(() => saving = false);
-                                        }
-                                      },
-                                style: FilledButton.styleFrom(backgroundColor: AppColors.medicalGreen),
-                                icon: saving
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation(Colors.white),
-                                        ),
-                                      )
-                                    : const Icon(Icons.check_rounded, size: 18),
-                                label: const Text('Créer'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDialogState(() => saving = true);
+                          try {
+                            await widget.patientGateway.createPharmacyItem(
+                              session: widget.session,
+                              code: codeController.text.trim(),
+                              label: labelController.text.trim(),
+                              dosage: dosageController.text.trim().isEmpty
+                                  ? null
+                                  : dosageController.text.trim(),
+                              price: double.parse(priceController.text.trim()),
+                              alertThreshold: int.parse(
+                                thresholdController.text.trim(),
+                              ),
+                            );
+                            if (!dialogContext.mounted) return;
+                            Navigator.of(dialogContext).pop();
+                            await _loadItems();
+                          } catch (_) {
+                            setDialogState(() => saving = false);
+                          }
+                        },
+                  icon: saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_rounded),
+                  label: Text(saving ? 'Création...' : 'Créer'),
+                ),
+              ],
             );
           },
         );
@@ -219,126 +209,81 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 450),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Form(
-                    key: formKey,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.edit_note_rounded, color: AppColors.medicalGreen, size: 28),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Ajuster Stock - ${item.label}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: AppColors.deepHealthBlue,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Divider(height: 24),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.lightBackground,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'Stock actuel : ${item.stockQuantity} unités',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: item.critical ? AppColors.error : AppColors.success,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          CompactTextFormField(
-                            controller: quantityController,
-                            label: 'Quantité (ex: 10 pour ajouter, -5 pour retirer)',
-                            icon: Icons.plus_one_rounded,
-                            keyboardType: const TextInputType.numberWithOptions(signed: true),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Requis';
-                              final parsed = int.tryParse(v);
-                              if (parsed == null) return 'Nombre entier requis';
-                              if (parsed == 0) return 'La quantité ne peut pas être 0';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          CompactTextFormField(
-                            controller: reasonController,
-                            label: "Motif de l'ajustement",
-                            icon: Icons.notes_rounded,
-                            textCapitalization: TextCapitalization.sentences,
-                            validator: (v) => v == null || v.trim().isEmpty ? 'Requis' : null,
-                          ),
-                          const SizedBox(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              TextButton(
-                                onPressed: saving ? null : () => Navigator.of(dialogContext).pop(),
-                                child: const Text('Annuler', style: TextStyle(color: AppColors.textSecondary)),
-                              ),
-                              const SizedBox(width: 8),
-                              FilledButton.icon(
-                                onPressed: saving
-                                    ? null
-                                    : () async {
-                                        if (!formKey.currentState!.validate()) return;
-                                        setDialogState(() => saving = true);
-                                        try {
-                                          await widget.patientGateway.adjustPharmacyStock(
-                                            session: widget.session,
-                                            id: item.id,
-                                            quantity: int.parse(quantityController.text),
-                                            reason: reasonController.text.trim(),
-                                          );
-                                          Navigator.of(dialogContext).pop();
-                                          _loadItems();
-                                        } catch (_) {
-                                          setDialogState(() => saving = false);
-                                        }
-                                      },
-                                style: FilledButton.styleFrom(backgroundColor: AppColors.medicalGreen),
-                                icon: saving
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation(Colors.white),
-                                        ),
-                                      )
-                                    : const Icon(Icons.check_rounded, size: 18),
-                                label: const Text('Enregistrer'),
-                              ),
-                            ],
-                          ),
-                        ],
+            return AppFormDialog(
+              title: 'Ajuster le stock',
+              subtitle: item.label,
+              icon: Icons.edit_note_rounded,
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _CurrentStockBanner(item: item),
+                    const SizedBox(height: 14),
+                    CompactTextFormField(
+                      controller: quantityController,
+                      label: 'Quantité',
+                      hintText: 'Ex: 10 ou -5',
+                      helperText:
+                          'Utiliser une valeur négative pour une sortie.',
+                      icon: Icons.swap_vert_rounded,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        signed: true,
                       ),
+                      textInputAction: TextInputAction.next,
+                      validator: _stockQuantityValidator,
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    CompactTextFormField(
+                      controller: reasonController,
+                      label: "Motif de l'ajustement",
+                      icon: Icons.notes_rounded,
+                      textInputAction: TextInputAction.done,
+                      textCapitalization: TextCapitalization.sentences,
+                      validator: _required,
+                    ),
+                  ],
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDialogState(() => saving = true);
+                          try {
+                            await widget.patientGateway.adjustPharmacyStock(
+                              session: widget.session,
+                              id: item.id,
+                              quantity: int.parse(
+                                quantityController.text.trim(),
+                              ),
+                              reason: reasonController.text.trim(),
+                            );
+                            if (!dialogContext.mounted) return;
+                            Navigator.of(dialogContext).pop();
+                            await _loadItems();
+                          } catch (_) {
+                            setDialogState(() => saving = false);
+                          }
+                        },
+                  icon: saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_rounded),
+                  label: Text(saving ? 'Enregistrement...' : 'Enregistrer'),
+                ),
+              ],
             );
           },
         );
@@ -346,9 +291,49 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
     );
   }
 
+  String? _required(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Requis';
+    }
+    return null;
+  }
+
+  String? _positiveNumberRequired(String? value) {
+    final requiredError = _required(value);
+    if (requiredError != null) return requiredError;
+    final parsed = double.tryParse(value!.trim());
+    if (parsed == null || parsed < 0) {
+      return 'Nombre invalide';
+    }
+    return null;
+  }
+
+  String? _integerRequired(String? value) {
+    final requiredError = _required(value);
+    if (requiredError != null) return requiredError;
+    if (int.tryParse(value!.trim()) == null) {
+      return 'Entier invalide';
+    }
+    return null;
+  }
+
+  String? _stockQuantityValidator(String? value) {
+    final requiredError = _required(value);
+    if (requiredError != null) return requiredError;
+    final parsed = int.tryParse(value!.trim());
+    if (parsed == null) return 'Nombre entier requis';
+    if (parsed == 0) return 'La quantité ne peut pas être 0';
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredItems;
+    final criticalCount = _items.where((item) => item.critical).length;
+    final totalStock = _items.fold<int>(
+      0,
+      (total, item) => total + item.stockQuantity,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
@@ -366,9 +351,13 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
                     onPressed: _loadItems,
                     tooltip: 'Rafraîchir',
                   ),
-                  if (widget.session.roleCode == 'ADMIN' || widget.session.roleCode == 'MEDECIN')
+                  if (widget.session.roleCode == 'ADMIN' ||
+                      widget.session.roleCode == 'MEDECIN')
                     IconButton(
-                      icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.medicalGreen),
+                      icon: const Icon(
+                        Icons.add_circle_outline_rounded,
+                        color: AppColors.medicalGreen,
+                      ),
                       onPressed: _showAddDialog,
                       tooltip: 'Nouveau médicament',
                     ),
@@ -377,164 +366,405 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              child: TextField(
-                textInputAction: TextInputAction.search,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 15),
-                decoration: compactInputDecoration(
-                  context,
-                  hintText: 'Rechercher un médicament (nom ou code)...',
-                  prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                ),
-                onChanged: (val) => setState(() => _searchQuery = val),
+              child: Column(
+                children: [
+                  TextField(
+                    textInputAction: TextInputAction.search,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyLarge?.copyWith(fontSize: 15),
+                    decoration: compactInputDecoration(
+                      context,
+                      hintText: 'Rechercher un médicament (nom ou code)...',
+                      prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                    ),
+                    onChanged: (val) => setState(() => _searchQuery = val),
+                  ),
+                  if (!_loading && _error == null) ...[
+                    const SizedBox(height: 12),
+                    MetricStrip(
+                      items: [
+                        MetricStripItem(
+                          value: _items.length.toString(),
+                          label: 'Références',
+                          color: AppColors.deepHealthBlue,
+                        ),
+                        MetricStripItem(
+                          value: totalStock.toString(),
+                          label: 'Unités',
+                          color: AppColors.medicalGreen,
+                        ),
+                        MetricStripItem(
+                          value: criticalCount.toString(),
+                          label: 'Critiques',
+                          color: criticalCount > 0
+                              ? AppColors.error
+                              : AppColors.success,
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
             ),
             Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppColors.medicalGreen)))
-                  : _error != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
-                              const SizedBox(height: 16),
-                              Text(_error!, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: _loadItems,
-                                icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('Réessayer'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.medicalGreen,
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : filtered.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'Aucun médicament trouvé.',
-                                style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              itemCount: filtered.length,
-                              itemBuilder: (context, index) {
-                                final item = filtered[index];
-                                const radius = BorderRadius.all(Radius.circular(12));
-
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.card,
-                                    borderRadius: radius,
-                                    border: Border.all(
-                                      color: item.critical 
-                                          ? AppColors.error.withValues(alpha: 0.5) 
-                                          : AppColors.border.withValues(alpha: 0.40),
-                                      width: item.critical ? 1.5 : 1,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (item.critical ? AppColors.error : AppColors.deepHealthBlue)
-                                            .withValues(alpha: 0.035),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 5),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    borderRadius: radius,
-                                    child: ListTile(
-                                      contentPadding: const EdgeInsets.all(16),
-                                      title: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              item.label,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: AppColors.deepHealthBlue,
-                                              ),
-                                            ),
-                                          ),
-                                          if (item.critical)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.error.withValues(alpha: 0.08),
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: const [
-                                                  Icon(Icons.warning_rounded, size: 14, color: AppColors.error),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    'Stock critique !',
-                                                    style: TextStyle(
-                                                      color: AppColors.error,
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Code : ${item.code} ${item.dosage != null ? "· Dosage : ${item.dosage}" : ""}',
-                                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            '${item.price.toStringAsFixed(0)} FCFA',
-                                            style: const TextStyle(
-                                              color: AppColors.medicalGreen,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      trailing: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            '${item.stockQuantity} U',
-                                            style: TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                              color: item.critical ? AppColors.error : AppColors.success,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          const Text(
-                                            'En stock',
-                                            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                                          ),
-                                        ],
-                                      ),
-                                      onTap: () => _showAdjustStockDialog(item),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+              child: _PharmacyStockContent(
+                loading: _loading,
+                error: _error,
+                items: filtered,
+                onRetry: _loadItems,
+                onItemTap: _showAdjustStockDialog,
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PharmacyStockContent extends StatelessWidget {
+  const _PharmacyStockContent({
+    required this.loading,
+    required this.error,
+    required this.items,
+    required this.onRetry,
+    required this.onItemTap,
+  });
+
+  final bool loading;
+  final String? error;
+  final List<PharmacyItem> items;
+  final Future<void> Function() onRetry;
+  final ValueChanged<PharmacyItem> onItemTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (error != null) {
+      return _StockStateView(
+        icon: Icons.cloud_off_rounded,
+        title: 'Chargement impossible',
+        message: error!,
+        color: AppColors.error,
+        actionLabel: 'Réessayer',
+        onActionPressed: () => onRetry(),
+      );
+    }
+
+    if (items.isEmpty) {
+      return const _StockStateView(
+        icon: Icons.search_off_rounded,
+        title: 'Aucun médicament trouvé.',
+        message: 'Ajustez la recherche ou ajoutez une référence au catalogue.',
+        color: AppColors.medicalGreen,
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 18),
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _PharmacyItemCard(item: item, onTap: () => onItemTap(item));
+      },
+    );
+  }
+}
+
+class _PharmacyItemCard extends StatelessWidget {
+  const _PharmacyItemCard({required this.item, required this.onTap});
+
+  final PharmacyItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final stockColor = item.critical ? AppColors.error : AppColors.success;
+
+    return Material(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: item.critical
+                  ? AppColors.error.withValues(alpha: 0.28)
+                  : AppColors.border.withValues(alpha: 0.40),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.deepHealthBlue.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            leading: _MedicineIcon(critical: item.critical),
+            title: Text(
+              item.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.deepHealthBlue,
+                fontWeight: FontWeight.w700,
+                height: 1.12,
+              ),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _itemDetails(item),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 12.5,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _SoftChip(
+                        label: '${item.price.toStringAsFixed(0)} FCFA',
+                        color: AppColors.medicalGreen,
+                      ),
+                      if (item.critical)
+                        const _SoftChip(
+                          label: 'Stock critique !',
+                          color: AppColors.error,
+                          icon: Icons.warning_amber_rounded,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            trailing: _StockQuantityBadge(
+              quantity: item.stockQuantity,
+              color: stockColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _itemDetails(PharmacyItem item) {
+    final dosage = item.dosage;
+    if (dosage == null || dosage.trim().isEmpty) {
+      return 'Code : ${item.code}';
+    }
+    return 'Code : ${item.code} · Dosage : $dosage';
+  }
+}
+
+class _MedicineIcon extends StatelessWidget {
+  const _MedicineIcon({required this.critical});
+
+  final bool critical;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = critical ? AppColors.error : AppColors.medicalGreen;
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(Icons.medication_rounded, color: color, size: 21),
+    );
+  }
+}
+
+class _StockQuantityBadge extends StatelessWidget {
+  const _StockQuantityBadge({required this.quantity, required this.color});
+
+  final int quantity;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 70,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '$quantity U',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'En stock',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CurrentStockBanner extends StatelessWidget {
+  const _CurrentStockBanner({required this.item});
+
+  final PharmacyItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = item.critical ? AppColors.error : AppColors.success;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.inventory_2_rounded, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Stock actuel : ${item.stockQuantity} unités',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SoftChip extends StatelessWidget {
+  const _SoftChip({required this.label, required this.color, this.icon});
+
+  final String label;
+  final Color color;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: color,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StockStateView extends StatelessWidget {
+  const _StockStateView({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.color,
+    this.actionLabel,
+    this.onActionPressed,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Color color;
+  final String? actionLabel;
+  final VoidCallback? onActionPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 34),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          if (actionLabel != null && onActionPressed != null) ...[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: onActionPressed,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(actionLabel!),
+            ),
+          ],
+        ],
       ),
     );
   }

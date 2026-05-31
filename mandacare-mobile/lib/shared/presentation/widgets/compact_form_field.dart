@@ -116,7 +116,14 @@ class CompactDropdownField extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           items: [
             for (final item in items)
-              DropdownMenuItem<String>(value: item, child: Text(item)),
+              DropdownMenuItem<String>(
+                value: item,
+                child: Text(
+                  item,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
           ],
         ),
       ],

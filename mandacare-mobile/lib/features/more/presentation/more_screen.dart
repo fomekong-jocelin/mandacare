@@ -32,6 +32,14 @@ class MoreScreen extends StatelessWidget {
   final ClinicGateway clinicGateway;
   final PatientGateway patientGateway;
 
+  bool get _canOpenReports {
+    return const {
+      'ADMIN',
+      'MEDECIN',
+      'CAISSIER',
+    }.contains(session.roleCode.toUpperCase());
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -70,8 +78,15 @@ class MoreScreen extends StatelessWidget {
                       ActionTile(
                         icon: Icons.analytics_rounded,
                         title: 'Rapports',
-                        subtitle: 'Pilotage, recettes et statistiques',
-                        onTap: () => _openReports(context),
+                        subtitle: _canOpenReports
+                            ? 'Pilotage, recettes et statistiques'
+                            : 'Réservé aux profils de pilotage',
+                        onTap: _canOpenReports
+                            ? () => _openReports(context)
+                            : null,
+                        trailing: _canOpenReports
+                            ? null
+                            : _UnavailableBadge(label: 'Pilotage'),
                       ),
                       const SizedBox(height: 10),
                       ActionTile(

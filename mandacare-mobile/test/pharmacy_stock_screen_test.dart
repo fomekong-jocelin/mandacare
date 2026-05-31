@@ -13,7 +13,9 @@ void main() {
     roleLabel: 'Administrateur',
   );
 
-  testWidgets('PharmacyStockScreen loads and displays items and dialogs', (tester) async {
+  testWidgets('PharmacyStockScreen loads and displays items and dialogs', (
+    tester,
+  ) async {
     final fakeGateway = FakePatientGateway();
 
     await tester.pumpWidget(
@@ -33,7 +35,10 @@ void main() {
     expect(find.text('Paracétamol'), findsOneWidget);
     expect(find.text('Amoxicilline'), findsOneWidget);
     expect(find.text('Ibuprofène'), findsOneWidget);
-    expect(find.text('Stock critique !'), findsOneWidget); // Pour l'Amoxicilline
+    expect(
+      find.text('Stock critique !'),
+      findsOneWidget,
+    ); // Pour l'Amoxicilline
 
     // Tester la recherche
     await tester.enterText(find.byType(TextField), 'Paracétamol');
@@ -49,7 +54,7 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'Paracétamol'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ajuster Stock - Paracétamol'), findsOneWidget);
+    expect(find.text('Ajuster le stock'), findsOneWidget);
     expect(find.text('Stock actuel : 50 unités'), findsOneWidget);
 
     // Fermer le dialogue

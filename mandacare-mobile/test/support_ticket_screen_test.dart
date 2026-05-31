@@ -13,7 +13,9 @@ void main() {
     roleLabel: 'Administrateur',
   );
 
-  testWidgets('SupportTicketScreen displays tickets and opens dialog', (tester) async {
+  testWidgets('SupportTicketScreen displays tickets and opens dialog', (
+    tester,
+  ) async {
     final fakeGateway = FakePatientGateway();
 
     await tester.pumpWidget(
@@ -42,8 +44,14 @@ void main() {
     expect(find.text('Description détaillée'), findsOneWidget);
 
     // Remplir et soumettre
-    await tester.enterText(find.widgetWithText(TextFormField, 'Sujet / Titre de la demande'), 'Bug validation caisse');
-    await tester.enterText(find.widgetWithText(TextFormField, 'Description détaillée'), 'Le bouton de validation ne répond pas.');
+    await tester.enterText(
+      find.byKey(const ValueKey('support-subject-field')),
+      'Bug validation caisse',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('support-description-field')),
+      'Le bouton de validation ne répond pas.',
+    );
     await tester.tap(find.text('Soumettre'));
     await tester.pumpAndSettle();
 

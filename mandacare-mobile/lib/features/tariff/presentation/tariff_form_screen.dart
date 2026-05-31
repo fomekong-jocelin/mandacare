@@ -314,12 +314,18 @@ class _TariffFormScreenState extends State<TariffFormScreen> {
             for (final cat in dropdownItems)
               DropdownMenuItem<String>(
                 value: cat,
-                child: Text(cat.isEmpty ? 'Aucune catégorie' : cat),
+                child: Text(
+                  cat.isEmpty ? 'Aucune catégorie' : cat,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
             const DropdownMenuItem<String>(
               value: '__NEW_CATEGORY__',
               child: Text(
                 'Créer une nouvelle catégorie...',
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
                 style: TextStyle(
                   color: AppColors.deepHealthBlue,
                   fontWeight: FontWeight.w700,
