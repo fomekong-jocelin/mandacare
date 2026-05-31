@@ -34,32 +34,27 @@ class DashboardService {
                         select count(*)
                         from visits
                         where status <> 'RELEASED'
-                          and arrival_at >= ? and arrival_at < ?
-                        """, start, end),
+                        """),
                 count("""
                         select count(*)
                         from visits
                         where status = 'WAITING'
-                          and arrival_at >= ? and arrival_at < ?
-                        """, start, end),
+                        """),
                 count("""
                         select count(*)
                         from visits
                         where status = 'IN_CONSULTATION'
-                          and arrival_at >= ? and arrival_at < ?
-                        """, start, end),
+                        """),
                 count("""
                         select count(*)
                         from visits
                         where status = 'CASH_DESK'
-                          and arrival_at >= ? and arrival_at < ?
-                        """, start, end),
+                        """),
                 count("""
                         select count(*)
                         from visits
                         where status = 'LAB'
-                          and arrival_at >= ? and arrival_at < ?
-                        """, start, end),
+                        """),
                 count("""
                         select count(*)
                         from consultations
@@ -69,8 +64,7 @@ class DashboardService {
                         select count(*)
                         from visits
                         where status = 'LAB'
-                          and arrival_at >= ? and arrival_at < ?
-                        """, start, end),
+                        """),
                 count("""
                         select count(*)
                         from visit_lab_results
@@ -97,6 +91,11 @@ class DashboardService {
                 Timestamp.from(start),
                 Timestamp.from(end)
         );
+        return value == null ? 0 : value;
+    }
+
+    private int count(String sql) {
+        Integer value = jdbc.queryForObject(sql, Integer.class);
         return value == null ? 0 : value;
     }
 

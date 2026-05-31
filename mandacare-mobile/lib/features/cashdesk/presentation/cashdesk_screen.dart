@@ -41,6 +41,8 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
   List<CashDeskHistoryItem> _history = const [];
   late ActivityHistoryGateway _activityGateway;
   int _selectedSegment = 0;
+  ActivityHistoryPeriod _historyPeriod = ActivityHistoryPeriod.thirtyDays;
+  String _historyStatus = activityAllStatuses;
   bool _loading = true;
   bool _loadingHistory = false;
   String? _error;
@@ -110,6 +112,7 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
     try {
       final history = await _activityGateway.listCashDesk(
         session: widget.session,
+        period: _historyPeriod,
       );
       if (!mounted) {
         return;
@@ -134,6 +137,18 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
     if (value == 1 && _history.isEmpty && !_loadingHistory) {
       _loadHistory();
     }
+  }
+
+  void _changeHistoryPeriod(ActivityHistoryPeriod period) {
+    setState(() {
+      _historyPeriod = period;
+      _historyStatus = activityAllStatuses;
+    });
+    _loadHistory();
+  }
+
+  void _changeHistoryStatus(String status) {
+    setState(() => _historyStatus = status);
   }
 
   Future<_CashDeskPatient> _withConsultationDecision(
@@ -341,6 +356,10 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
                             items: _history,
                             loading: _loadingHistory,
                             error: _historyError,
+                            period: _historyPeriod,
+                            statusFilter: _historyStatus,
+                            onPeriodChanged: _changeHistoryPeriod,
+                            onStatusChanged: _changeHistoryStatus,
                             onRetry: _loadHistory,
                           ),
                         ] else ...[

@@ -6,11 +6,13 @@ import '../domain/activity_history_item.dart';
 abstract class ActivityHistoryGateway {
   Future<List<ConsultationHistoryItem>> listConsultations({
     required AuthSession session,
+    ActivityHistoryPeriod period = ActivityHistoryPeriod.thirtyDays,
     int limit = 50,
   });
 
   Future<List<CashDeskHistoryItem>> listCashDesk({
     required AuthSession session,
+    ActivityHistoryPeriod period = ActivityHistoryPeriod.thirtyDays,
     int limit = 50,
   });
 }
@@ -23,11 +25,12 @@ class BackendActivityHistoryGateway implements ActivityHistoryGateway {
   @override
   Future<List<ConsultationHistoryItem>> listConsultations({
     required AuthSession session,
+    ActivityHistoryPeriod period = ActivityHistoryPeriod.thirtyDays,
     int limit = 50,
   }) async {
     final response = await apiClient.getJsonList(
       '/activity/consultations',
-      query: {'limit': limit.toString()},
+      query: _query(period, limit),
       token: session.accessToken,
     );
     return response
@@ -39,11 +42,12 @@ class BackendActivityHistoryGateway implements ActivityHistoryGateway {
   @override
   Future<List<CashDeskHistoryItem>> listCashDesk({
     required AuthSession session,
+    ActivityHistoryPeriod period = ActivityHistoryPeriod.thirtyDays,
     int limit = 50,
   }) async {
     final response = await apiClient.getJsonList(
       '/activity/cash-desk',
-      query: {'limit': limit.toString()},
+      query: _query(period, limit),
       token: session.accessToken,
     );
     return response
@@ -58,6 +62,7 @@ class BackendActivityHistoryGateway implements ActivityHistoryGateway {
     return ConsultationHistoryItem(
       id: _string(json['id']),
       visitId: _optionalString(json['visitId']),
+      patientId: _string(json['patientId']),
       patientName: _string(json['patientName'], fallback: 'Patient'),
       patientNumber: _string(json['patientNumber'], fallback: '-'),
       reason: _string(json['reason'], fallback: 'Motif non renseigné'),
@@ -75,6 +80,7 @@ class BackendActivityHistoryGateway implements ActivityHistoryGateway {
     return CashDeskHistoryItem(
       invoiceId: _string(json['invoiceId']),
       visitId: _optionalString(json['visitId']),
+      patientId: _string(json['patientId']),
       invoiceNumber: _string(json['invoiceNumber'], fallback: '-'),
       patientName: _string(json['patientName'], fallback: 'Patient'),
       netAmount: _double(json['netAmount']),
@@ -92,12 +98,14 @@ class EmptyActivityHistoryGateway implements ActivityHistoryGateway {
   @override
   Future<List<ConsultationHistoryItem>> listConsultations({
     required AuthSession session,
+    ActivityHistoryPeriod period = ActivityHistoryPeriod.thirtyDays,
     int limit = 50,
   }) async => const [];
 
   @override
   Future<List<CashDeskHistoryItem>> listCashDesk({
     required AuthSession session,
+    ActivityHistoryPeriod period = ActivityHistoryPeriod.thirtyDays,
     int limit = 50,
   }) async => const [];
 }
@@ -136,4 +144,23 @@ DateTime _dateTime(Object? value) {
     return DateTime.tryParse(value)?.toLocal() ?? DateTime.now();
   }
   return DateTime.now();
+}
+
+Map<String, String> _query(ActivityHistoryPeriod period, int limit) {
+  final query = {'limit': limit.toString()};
+  final from = period.from;
+  final to = period.to;
+  if (from != null) {
+    query['from'] = _dateOnly(from);
+  }
+  if (to != null) {
+    query['to'] = _dateOnly(to);
+  }
+  return query;
+}
+
+String _dateOnly(DateTime value) {
+  return '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
 }

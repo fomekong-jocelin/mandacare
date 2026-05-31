@@ -57,11 +57,9 @@ class TodayStatusGrid extends StatelessWidget {
     return [
       _StatusCard(
         key: const ValueKey('dashboard-status-card-patients'),
-        title: 'Patients du jour',
-        value: loadingValue ?? _formatNumber(summary.patientsToday),
-        subtitle: loading
-            ? 'Chargement'
-            : '${summary.activeQueue} dossier(s) actif(s)',
+        title: 'File active',
+        value: loadingValue ?? _formatNumber(summary.activeQueue),
+        subtitle: loading ? 'Chargement' : '${summary.waitingQueue} en attente',
         icon: Icons.group_add_rounded,
         background: const Color(0xFFEAF4FF),
         accent: AppColors.info,
@@ -71,9 +69,7 @@ class TodayStatusGrid extends StatelessWidget {
         key: const ValueKey('dashboard-status-card-consultations'),
         title: 'Consultations',
         value: loadingValue ?? _formatNumber(summary.consultationQueue),
-        subtitle: loading
-            ? 'Chargement'
-            : '${summary.consultationsToday} acte(s) saisi(s)',
+        subtitle: loading ? 'Chargement' : 'à traiter maintenant',
         icon: Icons.medical_services_rounded,
         background: const Color(0xFFEAF6F1),
         accent: AppColors.medicalGreen,
@@ -83,9 +79,7 @@ class TodayStatusGrid extends StatelessWidget {
         key: const ValueKey('dashboard-status-card-lab'),
         title: 'Labo',
         value: loadingValue ?? _formatNumber(summary.labQueue),
-        subtitle: loading
-            ? 'Chargement'
-            : '${summary.validatedResults} résultat(s) validé(s)',
+        subtitle: loading ? 'Chargement' : 'examens à traiter',
         icon: Icons.science_rounded,
         background: const Color(0xFFFFF4E1),
         accent: AppColors.warning,
@@ -95,9 +89,7 @@ class TodayStatusGrid extends StatelessWidget {
         key: const ValueKey('dashboard-status-card-cash-desk'),
         title: 'Caisse',
         value: loadingValue ?? _formatNumber(summary.cashDeskQueue),
-        subtitle: loading
-            ? 'Chargement'
-            : '${_formatFcfa(summary.dailyRevenue)} encaissé(s)',
+        subtitle: loading ? 'Chargement' : 'dossiers à encaisser',
         icon: Icons.point_of_sale_rounded,
         background: const Color(0xFFF6F0DE),
         accent: AppColors.premiumGold,
@@ -117,14 +109,6 @@ class TodayStatusGrid extends StatelessWidget {
       }
     }
     return buffer.toString();
-  }
-
-  static String _formatFcfa(double value) {
-    final rounded = value.round();
-    if (rounded == 0) {
-      return '0 FCFA';
-    }
-    return '${_formatNumber(rounded)} FCFA';
   }
 }
 

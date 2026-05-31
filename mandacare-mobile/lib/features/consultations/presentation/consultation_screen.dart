@@ -43,6 +43,8 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
   String? _vitalsError;
   String? _historyError;
   int _selectedSegment = 0;
+  ActivityHistoryPeriod _historyPeriod = ActivityHistoryPeriod.thirtyDays;
+  String _historyStatus = activityAllStatuses;
   bool _loadingPatients = true;
   bool _loadingVitals = false;
   bool _loadingHistory = false;
@@ -129,6 +131,10 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
           items: _history,
           loading: _loadingHistory,
           error: _historyError,
+          period: _historyPeriod,
+          statusFilter: _historyStatus,
+          onPeriodChanged: _changeHistoryPeriod,
+          onStatusChanged: _changeHistoryStatus,
           onRetry: _loadHistory,
         ),
       ];
@@ -197,6 +203,18 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     }
   }
 
+  void _changeHistoryPeriod(ActivityHistoryPeriod period) {
+    setState(() {
+      _historyPeriod = period;
+      _historyStatus = activityAllStatuses;
+    });
+    _loadHistory();
+  }
+
+  void _changeHistoryStatus(String status) {
+    setState(() => _historyStatus = status);
+  }
+
   Future<void> _loadConsultations() async {
     setState(() {
       _loadingPatients = true;
@@ -249,6 +267,7 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     try {
       final history = await _activityGateway.listConsultations(
         session: widget.session,
+        period: _historyPeriod,
       );
       if (!mounted) {
         return;
