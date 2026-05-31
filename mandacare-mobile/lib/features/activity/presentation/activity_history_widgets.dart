@@ -1,10 +1,17 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../../../app/api/api_client.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../shared/presentation/document_preview_share_screen.dart';
+import '../../auth/domain/auth_session.dart';
 import '../domain/activity_history_item.dart';
 
 part 'activity_history_details.dart';
 part 'activity_history_detail_components.dart';
+part 'activity_history_filters.dart';
 
 const activityAllStatuses = '__all__';
 
@@ -42,6 +49,8 @@ class ConsultationHistoryList extends StatelessWidget {
     required this.onPeriodChanged,
     required this.onStatusChanged,
     required this.onRetry,
+    this.session,
+    this.apiClient,
     super.key,
   });
 
@@ -53,6 +62,8 @@ class ConsultationHistoryList extends StatelessWidget {
   final ValueChanged<ActivityHistoryPeriod> onPeriodChanged;
   final ValueChanged<String> onStatusChanged;
   final VoidCallback onRetry;
+  final AuthSession? session;
+  final ApiClient? apiClient;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +86,12 @@ class ConsultationHistoryList extends StatelessWidget {
             meta: '${item.patientNumber} · ${_formatDateTime(item.createdAt)}',
             badge: _statusLabel(item.status),
             detail: item.reason,
-            onTap: () => _showConsultationDetails(context, item),
+            onTap: () => _showConsultationDetails(
+              context,
+              item,
+              session: session,
+              apiClient: apiClient,
+            ),
           ),
       ],
     );
@@ -92,6 +108,8 @@ class CashDeskHistoryList extends StatelessWidget {
     required this.onPeriodChanged,
     required this.onStatusChanged,
     required this.onRetry,
+    this.session,
+    this.apiClient,
     super.key,
   });
 
@@ -103,6 +121,8 @@ class CashDeskHistoryList extends StatelessWidget {
   final ValueChanged<ActivityHistoryPeriod> onPeriodChanged;
   final ValueChanged<String> onStatusChanged;
   final VoidCallback onRetry;
+  final AuthSession? session;
+  final ApiClient? apiClient;
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +147,12 @@ class CashDeskHistoryList extends StatelessWidget {
             detail: item.remainingAmount > 0
                 ? 'Reste ${_formatAmount(item.remainingAmount)} FCFA'
                 : 'Soldé',
-            onTap: () => _showCashDeskDetails(context, item),
+            onTap: () => _showCashDeskDetails(
+              context,
+              item,
+              session: session,
+              apiClient: apiClient,
+            ),
           ),
       ],
     );
@@ -454,40 +479,4 @@ class _HistoryMessage extends StatelessWidget {
       ),
     );
   }
-}
-
-class _HistoryFilters {
-  const _HistoryFilters(this.period, this.status, this.statusValues);
-
-  final ActivityHistoryPeriod period;
-  final String status;
-  final List<String> statusValues;
-}
-
-_HistoryFilters _filters<T extends Object>(
-  List<T> items,
-  ActivityHistoryPeriod period,
-  String status,
-) {
-  final values = {
-    for (final item in items) _statusOf(item),
-  }.where((value) => value.isNotEmpty).toList();
-  return _HistoryFilters(period, status, values);
-}
-
-List<T> _filterStatus<T extends Object>(List<T> items, String status) {
-  if (status == activityAllStatuses) {
-    return items;
-  }
-  return items.where((item) => _statusOf(item) == status).toList();
-}
-
-String _statusOf(Object item) {
-  if (item is ConsultationHistoryItem) {
-    return item.status;
-  }
-  if (item is CashDeskHistoryItem) {
-    return item.status;
-  }
-  return '';
 }

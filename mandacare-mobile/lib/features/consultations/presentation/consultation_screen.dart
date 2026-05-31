@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/api/api_client.dart';
 import '../../../app/api/api_exception.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/presentation/layout/adaptive_layout.dart';
@@ -133,6 +134,8 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
           error: _historyError,
           period: _historyPeriod,
           statusFilter: _historyStatus,
+          session: widget.session,
+          apiClient: _documentApiClient,
           onPeriodChanged: _changeHistoryPeriod,
           onStatusChanged: _changeHistoryStatus,
           onRetry: _loadHistory,
@@ -386,6 +389,13 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     return _patients
         .where((patient) => patient.priority == PatientPriority.urgent)
         .length;
+  }
+
+  ApiClient get _documentApiClient {
+    if (widget.patientGateway is BackendPatientGateway) {
+      return (widget.patientGateway as BackendPatientGateway).apiClient;
+    }
+    return ApiClient(baseUrl: 'http://localhost:8080/api/v1');
   }
 
   bool _isSamePatient(PatientSummary? left, PatientSummary? right) {

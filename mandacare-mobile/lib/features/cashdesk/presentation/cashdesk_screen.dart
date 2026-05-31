@@ -151,6 +151,13 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
     setState(() => _historyStatus = status);
   }
 
+  ApiClient get _documentApiClient {
+    if (widget.patientGateway is BackendPatientGateway) {
+      return (widget.patientGateway as BackendPatientGateway).apiClient;
+    }
+    return ApiClient(baseUrl: 'http://localhost:8080/api/v1');
+  }
+
   Future<_CashDeskPatient> _withConsultationDecision(
     PatientSummary patient,
   ) async {
@@ -358,6 +365,8 @@ class _CashDeskScreenState extends State<CashDeskScreen> {
                             error: _historyError,
                             period: _historyPeriod,
                             statusFilter: _historyStatus,
+                            session: widget.session,
+                            apiClient: _documentApiClient,
                             onPeriodChanged: _changeHistoryPeriod,
                             onStatusChanged: _changeHistoryStatus,
                             onRetry: _loadHistory,

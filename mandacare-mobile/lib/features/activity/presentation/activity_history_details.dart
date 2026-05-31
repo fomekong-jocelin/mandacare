@@ -2,8 +2,10 @@ part of 'activity_history_widgets.dart';
 
 void _showConsultationDetails(
   BuildContext context,
-  ConsultationHistoryItem item,
-) {
+  ConsultationHistoryItem item, {
+  AuthSession? session,
+  ApiClient? apiClient,
+}) {
   _showActivityDetails(
     context,
     title: item.patientName,
@@ -28,10 +30,27 @@ void _showConsultationDetails(
         _DetailRow('Décision', _statusLabel(item.decision)),
       ]),
     ],
+    documents: [
+      if (session != null && apiClient != null)
+        _ActivityDocument(
+          title: 'Ordonnance',
+          subtitle: 'PDF consultation',
+          pdfUrl: '/consultations/${item.id}/prescription/pdf',
+          entityId: item.id,
+          entityType: 'PRESCRIPTION',
+          session: session,
+          apiClient: apiClient,
+        ),
+    ],
   );
 }
 
-void _showCashDeskDetails(BuildContext context, CashDeskHistoryItem item) {
+void _showCashDeskDetails(
+  BuildContext context,
+  CashDeskHistoryItem item, {
+  AuthSession? session,
+  ApiClient? apiClient,
+}) {
   final remaining = item.remainingAmount > 0
       ? '${_formatAmount(item.remainingAmount)} FCFA'
       : 'Soldé';
@@ -65,6 +84,18 @@ void _showCashDeskDetails(BuildContext context, CashDeskHistoryItem item) {
         _DetailRow('Date', _formatDateTime(item.createdAt)),
       ]),
     ],
+    documents: [
+      if (session != null && apiClient != null && item.visitId != null)
+        _ActivityDocument(
+          title: item.remainingAmount > 0 ? 'Facture' : 'Reçu',
+          subtitle: item.invoiceNumber,
+          pdfUrl: '/visits/${item.visitId}/invoice/pdf',
+          entityId: item.visitId!,
+          entityType: 'INVOICE',
+          session: session,
+          apiClient: apiClient,
+        ),
+    ],
   );
 }
 
@@ -80,6 +111,7 @@ void _showActivityDetails(
   required List<String> chips,
   required List<_MetricInfo> metrics,
   required List<_DetailSection> sections,
+  required List<_ActivityDocument> documents,
 }) {
   showModalBottomSheet<void>(
     context: context,
@@ -98,6 +130,7 @@ void _showActivityDetails(
         chips: chips,
         metrics: metrics,
         sections: sections,
+        documents: documents,
       ),
     ),
   );
@@ -115,6 +148,7 @@ class _ActivityDetailSheet extends StatelessWidget {
     required this.chips,
     required this.metrics,
     required this.sections,
+    required this.documents,
   });
 
   final String title;
@@ -127,6 +161,7 @@ class _ActivityDetailSheet extends StatelessWidget {
   final List<String> chips;
   final List<_MetricInfo> metrics;
   final List<_DetailSection> sections;
+  final List<_ActivityDocument> documents;
 
   @override
   Widget build(BuildContext context) {
@@ -162,8 +197,10 @@ class _ActivityDetailSheet extends StatelessWidget {
                     const SizedBox(height: 14),
                     for (final section in sections) ...[
                       _DetailSectionCard(section: section, accent: accent),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                     ],
+                    if (documents.isNotEmpty)
+                      _DocumentSection(documents: documents, accent: accent),
                   ],
                 ),
               ),
