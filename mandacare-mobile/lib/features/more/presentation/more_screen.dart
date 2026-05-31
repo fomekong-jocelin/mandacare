@@ -17,6 +17,8 @@ import 'clinic_settings_screen.dart';
 import 'support_ticket_screen.dart';
 import 'help_screen.dart';
 import 'database_maintenance_screen.dart';
+import '../../auth/data/auth_gateway.dart';
+import 'user_profile_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({
@@ -25,6 +27,9 @@ class MoreScreen extends StatelessWidget {
     required this.tariffGateway,
     required this.clinicGateway,
     required this.patientGateway,
+    required this.authGateway,
+    required this.onLogout,
+    required this.onSessionChanged,
     super.key,
   });
 
@@ -33,6 +38,9 @@ class MoreScreen extends StatelessWidget {
   final TariffGateway tariffGateway;
   final ClinicGateway clinicGateway;
   final PatientGateway patientGateway;
+  final AuthGateway authGateway;
+  final VoidCallback onLogout;
+  final ValueChanged<AuthSession> onSessionChanged;
 
   bool get _canOpenReports {
     return const {
@@ -66,7 +74,10 @@ class MoreScreen extends StatelessWidget {
                   ),
                   sliver: SliverList.list(
                     children: [
-                      _ProfileCard(session: session),
+                      _ProfileCard(
+                        session: session,
+                        onTap: () => _openUserProfile(context),
+                      ),
                       const SizedBox(height: 18),
                       const _SectionTitle(title: 'Gestion'),
                       const SizedBox(height: 10),
@@ -149,6 +160,27 @@ class MoreScreen extends StatelessWidget {
                         title: 'Support technique',
                         subtitle: 'Assistance technique et tickets',
                         onTap: () => _openSupport(context),
+                      ),
+                      const SizedBox(height: 24),
+                      TextButton.icon(
+                        onPressed: onLogout,
+                        icon: const Icon(Icons.logout_rounded, color: Colors.red),
+                        label: const Text(
+                          'Se déconnecter',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: Colors.red.withValues(alpha: 0.20)),
+                          ),
+                          backgroundColor: Colors.red.withValues(alpha: 0.05),
+                        ),
                       ),
                     ],
                   ),
@@ -243,51 +275,79 @@ class MoreScreen extends StatelessWidget {
       ),
     );
   }
+
+  void _openUserProfile(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => UserProfileScreen(
+          session: session,
+          authGateway: authGateway,
+          onSessionChanged: onSessionChanged,
+        ),
+      ),
+    );
+  }
 }
 
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.session});
+  const _ProfileCard({required this.session, required this.onTap});
 
   final AuthSession session;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final roleDescription = session.roleDescription?.trim();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.deepHealthBlue,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.deepHealthBlue.withValues(alpha: 0.14),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.deepHealthBlue,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.deepHealthBlue.withValues(alpha: 0.14),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 27,
-            backgroundColor: Colors.white,
-            child: _ProfileInitials(initials: session.initials),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 27,
+                backgroundColor: Colors.white,
+                child: _ProfileInitials(initials: session.initials),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            session.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Colors.white70,
+                        ),
+                      ],
+                    ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -318,7 +378,9 @@ class _ProfileCard extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

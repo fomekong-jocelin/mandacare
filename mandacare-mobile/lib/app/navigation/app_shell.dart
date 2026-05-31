@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../features/cashdesk/presentation/cashdesk_screen.dart';
 import '../../features/consultations/presentation/consultation_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/auth/data/auth_gateway.dart';
 import '../../features/auth/domain/auth_session.dart';
 import '../../features/more/data/clinic_gateway.dart';
 import '../../features/more/presentation/more_screen.dart';
@@ -22,6 +23,9 @@ class AppShell extends StatefulWidget {
     required this.userGateway,
     required this.tariffGateway,
     required this.clinicGateway,
+    required this.authGateway,
+    required this.onLogout,
+    required this.onSessionChanged,
     super.key,
   });
 
@@ -30,6 +34,9 @@ class AppShell extends StatefulWidget {
   final UserGateway userGateway;
   final TariffGateway tariffGateway;
   final ClinicGateway clinicGateway;
+  final AuthGateway authGateway;
+  final VoidCallback onLogout;
+  final ValueChanged<AuthSession> onSessionChanged;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -82,6 +89,9 @@ class _AppShellState extends State<AppShell> {
           tariffGateway: widget.tariffGateway,
           clinicGateway: widget.clinicGateway,
           patientGateway: widget.patientGateway,
+          authGateway: widget.authGateway,
+          onLogout: widget.onLogout,
+          onSessionChanged: widget.onSessionChanged,
         ),
       ],
     );

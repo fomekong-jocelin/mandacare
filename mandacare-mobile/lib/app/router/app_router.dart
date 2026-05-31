@@ -67,6 +67,9 @@ class _AppRouterState extends State<AppRouter> {
       userGateway: _userGateway,
       tariffGateway: _tariffGateway,
       clinicGateway: _clinicGateway,
+      authGateway: _authGateway,
+      onLogout: _logout,
+      onSessionChanged: _updateSession,
     );
   }
 
@@ -79,5 +82,17 @@ class _AppRouterState extends State<AppRouter> {
       setState(() => _session = session);
     }
     return session;
+  }
+
+  void _logout() {
+    if (mounted) {
+      setState(() => _session = null);
+    }
+  }
+
+  void _updateSession(AuthSession newSession) {
+    if (mounted) {
+      setState(() => _session = newSession);
+    }
   }
 }

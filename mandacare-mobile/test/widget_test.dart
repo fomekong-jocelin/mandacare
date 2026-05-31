@@ -36,6 +36,7 @@ void main() {
   Widget appWithSession({ClinicGateway? clinicGateway}) {
     return MandaCareApp(
       initialSession: session,
+      authGateway: FakeAuthGateway(session),
       patientGateway: FakePatientGateway(),
       userGateway: FakeUserGateway(),
       clinicGateway: clinicGateway ?? const FakeClinicGateway(),
@@ -756,6 +757,66 @@ void main() {
     // 9. Verify we are back on more tab
     expect(find.text('Compte, rôle et modules'), findsOneWidget);
   });
+
+  testWidgets('user can edit profile and log out successfully', (tester) async {
+    await tester.pumpWidget(appWithSession());
+    await tester.pumpAndSettle();
+
+    // 1. Switch to "more" tab
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-more')));
+    await tester.pumpAndSettle();
+
+    // 2. Click the profile card
+    await tester.tap(find.text('Dr Manda'));
+    await tester.pumpAndSettle();
+
+    // 3. Verify we are on UserProfileScreen
+    expect(find.text('Mon profil'), findsOneWidget);
+    expect(find.text('Dr Manda'), findsOneWidget);
+
+    // 4. Tap edit button
+    await tester.tap(find.text('Modifier mes informations'));
+    await tester.pumpAndSettle();
+
+    // 5. Fill edit profile form
+    await tester.enterText(find.byKey(const ValueKey('profile-edit-firstname')), 'Docteur');
+    await tester.enterText(find.byKey(const ValueKey('profile-edit-lastname')), 'Manda');
+    await tester.enterText(find.byKey(const ValueKey('profile-edit-phone')), '677889900');
+    await tester.enterText(find.byKey(const ValueKey('profile-edit-email')), 'dr.manda@example.org');
+    await tester.enterText(find.byKey(const ValueKey('profile-edit-password')), 'newpassword');
+    await tester.pumpAndSettle();
+
+    // 6. Save modifications
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pump(); // trigger future
+    await tester.pumpAndSettle();
+
+    // 7. Verify details updated on UserProfileScreen
+    expect(find.text('Docteur Manda'), findsOneWidget);
+    expect(find.text('677889900'), findsOneWidget);
+    expect(find.text('dr.manda@example.org'), findsOneWidget);
+
+    // 8. Go back to more tab
+    await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+
+    // 9. Verify name updated on MoreScreen
+    expect(find.text('Docteur Manda'), findsOneWidget);
+
+    // 10. Test logout
+    final logoutButton = find.text('Se déconnecter');
+    await tester.scrollUntilVisible(
+      logoutButton,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(logoutButton);
+    await tester.pumpAndSettle();
+
+    // 11. Verify we are back on LoginScreen
+    expect(find.text('Connexion'), findsOneWidget);
+  });
 }
 
 class FakeAuthGateway implements AuthGateway {
@@ -769,6 +830,32 @@ class FakeAuthGateway implements AuthGateway {
     required String password,
   }) async {
     return session;
+  }
+
+  @override
+  Future<AuthSession> getProfile({required String accessToken}) async {
+    return session;
+  }
+
+  @override
+  Future<AuthSession> updateProfile({
+    required String accessToken,
+    required String firstName,
+    required String lastName,
+    String? phone,
+    String? email,
+    String? password,
+  }) async {
+    return AuthSession(
+      accessToken: accessToken,
+      username: session.username,
+      displayName: '$firstName $lastName',
+      roleCode: session.roleCode,
+      roleLabel: session.roleLabel,
+      roleDescription: session.roleDescription,
+      phone: phone,
+      email: email,
+    );
   }
 }
 
