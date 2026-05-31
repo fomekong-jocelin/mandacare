@@ -66,6 +66,11 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
     }).toList();
   }
 
+  bool get _canManageCatalog {
+    return widget.session.roleCode == 'ADMIN' ||
+        widget.session.roleCode == 'MEDECIN';
+  }
+
   void _showAddDialog() {
     final formKey = GlobalKey<FormState>();
     final codeController = TextEditingController();
@@ -188,6 +193,195 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
                         )
                       : const Icon(Icons.check_rounded),
                   label: Text(saving ? 'Création...' : 'Créer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showItemActions(PharmacyItem item) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.deepHealthBlue,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Code : ${item.code}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  leading: const Icon(Icons.swap_vert_rounded),
+                  title: const Text('Ajuster le stock'),
+                  subtitle: const Text('Entrée ou sortie de quantité'),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _showAdjustStockDialog(item);
+                  },
+                ),
+                if (_canManageCatalog)
+                  ListTile(
+                    leading: const Icon(Icons.edit_rounded),
+                    title: const Text('Modifier le médicament'),
+                    subtitle: const Text('Prix, dosage, seuil et libellé'),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _showEditDialog(item);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditDialog(PharmacyItem item) {
+    final formKey = GlobalKey<FormState>();
+    final codeController = TextEditingController(text: item.code);
+    final labelController = TextEditingController(text: item.label);
+    final dosageController = TextEditingController(text: item.dosage ?? '');
+    final priceController = TextEditingController(
+      text: item.price.toStringAsFixed(0),
+    );
+    final thresholdController = TextEditingController(
+      text: item.alertThreshold.toString(),
+    );
+    bool saving = false;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AppFormDialog(
+              title: 'Modifier médicament',
+              subtitle: item.label,
+              icon: Icons.medication_rounded,
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CompactTextFormField(
+                      controller: codeController,
+                      label: 'Code',
+                      icon: Icons.qr_code_rounded,
+                      textInputAction: TextInputAction.next,
+                      textCapitalization: TextCapitalization.characters,
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    CompactTextFormField(
+                      controller: labelController,
+                      label: 'Nom du médicament',
+                      icon: Icons.label_important_rounded,
+                      textInputAction: TextInputAction.next,
+                      textCapitalization: TextCapitalization.sentences,
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    CompactTextFormField(
+                      controller: dosageController,
+                      label: 'Dosage',
+                      hintText: 'Ex: 500mg, 1g',
+                      icon: Icons.scale_rounded,
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: CompactTextFormField(
+                            controller: priceController,
+                            label: 'Prix de vente',
+                            hintText: 'FCFA',
+                            icon: Icons.payments_rounded,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                            validator: _positiveNumberRequired,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: CompactTextFormField(
+                            controller: thresholdController,
+                            label: 'Seuil alerte',
+                            icon: Icons.warning_amber_rounded,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.done,
+                            validator: _integerRequired,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDialogState(() => saving = true);
+                          try {
+                            await widget.patientGateway.updatePharmacyItem(
+                              session: widget.session,
+                              id: item.id,
+                              code: codeController.text.trim(),
+                              label: labelController.text.trim(),
+                              dosage: dosageController.text.trim().isEmpty
+                                  ? null
+                                  : dosageController.text.trim(),
+                              price: double.parse(priceController.text.trim()),
+                              alertThreshold: int.parse(
+                                thresholdController.text.trim(),
+                              ),
+                            );
+                            if (!dialogContext.mounted) return;
+                            Navigator.of(dialogContext).pop();
+                            await _loadItems();
+                          } catch (_) {
+                            setDialogState(() => saving = false);
+                          }
+                        },
+                  icon: saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_rounded),
+                  label: Text(saving ? 'Enregistrement...' : 'Enregistrer'),
                 ),
               ],
             );
@@ -351,8 +545,7 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
                     onPressed: _loadItems,
                     tooltip: 'Rafraîchir',
                   ),
-                  if (widget.session.roleCode == 'ADMIN' ||
-                      widget.session.roleCode == 'MEDECIN')
+                  if (_canManageCatalog)
                     IconButton(
                       icon: const Icon(
                         Icons.add_circle_outline_rounded,
@@ -413,7 +606,7 @@ class _PharmacyStockScreenState extends State<PharmacyStockScreen> {
                 error: _error,
                 items: filtered,
                 onRetry: _loadItems,
-                onItemTap: _showAdjustStockDialog,
+                onItemTap: _showItemActions,
               ),
             ),
           ],

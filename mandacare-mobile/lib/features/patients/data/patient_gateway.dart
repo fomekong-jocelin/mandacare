@@ -121,6 +121,15 @@ abstract class PatientGateway {
     required double price,
     required int alertThreshold,
   });
+  Future<PharmacyItem> updatePharmacyItem({
+    required AuthSession session,
+    required String id,
+    required String code,
+    required String label,
+    required String? dosage,
+    required double price,
+    required int alertThreshold,
+  });
 
   // Rapports & Pilotage
   Future<DailyReport> getDailyReport({required AuthSession session});
@@ -424,6 +433,26 @@ class BackendPatientGateway implements PatientGateway {
     required int alertThreshold,
   }) async {
     final response = await apiClient.postJson('/pharmacy', {
+      'code': code,
+      'label': label,
+      'dosage': dosage,
+      'price': price,
+      'alertThreshold': alertThreshold,
+    }, token: session.accessToken);
+    return PharmacyItem.fromJson(response);
+  }
+
+  @override
+  Future<PharmacyItem> updatePharmacyItem({
+    required AuthSession session,
+    required String id,
+    required String code,
+    required String label,
+    required String? dosage,
+    required double price,
+    required int alertThreshold,
+  }) async {
+    final response = await apiClient.putJson('/pharmacy/$id', {
       'code': code,
       'label': label,
       'dosage': dosage,

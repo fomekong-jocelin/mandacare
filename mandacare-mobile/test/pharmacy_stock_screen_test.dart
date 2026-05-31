@@ -55,6 +55,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ajuster le stock'), findsOneWidget);
+    expect(find.text('Modifier le médicament'), findsOneWidget);
+
+    await tester.tap(find.text('Ajuster le stock'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ajuster le stock'), findsOneWidget);
     expect(find.text('Stock actuel : 50 unités'), findsOneWidget);
 
     // Fermer le dialogue

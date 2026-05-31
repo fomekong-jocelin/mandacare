@@ -1197,6 +1197,35 @@ class FakePatientGateway implements PatientGateway {
     return newItem;
   }
 
+  @override
+  Future<PharmacyItem> updatePharmacyItem({
+    required AuthSession session,
+    required String id,
+    required String code,
+    required String label,
+    required String? dosage,
+    required double price,
+    required int alertThreshold,
+  }) async {
+    final idx = _pharmacyItems.indexWhere((item) => item.id == id);
+    if (idx != -1) {
+      final old = _pharmacyItems[idx];
+      final updated = PharmacyItem(
+        id: old.id,
+        code: code,
+        label: label,
+        dosage: dosage,
+        price: price,
+        stockQuantity: old.stockQuantity,
+        alertThreshold: alertThreshold,
+        critical: old.stockQuantity <= alertThreshold,
+      );
+      _pharmacyItems[idx] = updated;
+      return updated;
+    }
+    throw Exception("Not found");
+  }
+
   // Rapports & Pilotage (Simulation)
   @override
   Future<DailyReport> getDailyReport({required AuthSession session}) async {

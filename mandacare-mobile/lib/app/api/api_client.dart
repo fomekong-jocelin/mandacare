@@ -22,9 +22,15 @@ class ApiClient {
     }
     final response = await request.close();
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(response.statusCode, 'Erreur de téléchargement du document.');
+      throw ApiException(
+        response.statusCode,
+        'Erreur de téléchargement du document.',
+      );
     }
-    final bytes = await response.fold<List<int>>([], (previous, element) => previous..addAll(element));
+    final bytes = await response.fold<List<int>>(
+      [],
+      (previous, element) => previous..addAll(element),
+    );
     return Uint8List.fromList(bytes);
   }
 
@@ -56,6 +62,18 @@ class ApiClient {
     String? token,
   }) async {
     final request = await _httpClient.postUrl(_uri(path));
+    _applyHeaders(request, token);
+    request.write(jsonEncode(body));
+    final response = await request.close();
+    return _decodeResponse(response);
+  }
+
+  Future<Map<String, dynamic>> putJson(
+    String path,
+    Map<String, dynamic> body, {
+    String? token,
+  }) async {
+    final request = await _httpClient.putUrl(_uri(path));
     _applyHeaders(request, token);
     request.write(jsonEncode(body));
     final response = await request.close();

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 
 interface PharmacyItemRepository extends JpaRepository<PharmacyItemEntity, UUID> {
     Optional<PharmacyItemEntity> findByCodeIgnoreCase(String code);
+    boolean existsByCodeIgnoreCaseAndIdNot(String code, UUID id);
     Optional<PharmacyItemEntity> findByLabelIgnoreCase(String label);
 
     @Query("SELECT p FROM PharmacyItemEntity p WHERE p.stockQuantity <= p.alertThreshold")

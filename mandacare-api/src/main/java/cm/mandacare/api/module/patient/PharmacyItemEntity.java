@@ -54,7 +54,8 @@ class PharmacyItemEntity {
         }
     }
 
-    void update(String label, String dosage, BigDecimal price, Integer alertThreshold) {
+    void update(String code, String label, String dosage, BigDecimal price, Integer alertThreshold) {
+        this.code = code.trim().toUpperCase();
         this.label = label.trim();
         this.dosage = dosage != null ? dosage.trim() : null;
         this.price = price;

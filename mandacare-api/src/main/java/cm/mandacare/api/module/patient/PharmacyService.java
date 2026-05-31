@@ -53,7 +53,14 @@ class PharmacyService {
                         "Médicament introuvable.",
                         HttpStatus.NOT_FOUND
                 ));
-        item.update(request.label(), request.dosage(), request.price(), request.alertThreshold());
+        if (items.existsByCodeIgnoreCaseAndIdNot(request.code(), id)) {
+            throw new BusinessException(
+                    "DUPLICATE_CODE",
+                    "Un médicament avec ce code existe déjà.",
+                    HttpStatus.CONFLICT
+            );
+        }
+        item.update(request.code(), request.label(), request.dosage(), request.price(), request.alertThreshold());
         return mapToResponse(items.save(item));
     }
 
