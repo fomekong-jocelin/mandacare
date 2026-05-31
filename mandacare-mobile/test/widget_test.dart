@@ -3,6 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mandacare_mobile/features/auth/data/auth_gateway.dart';
 import 'package:mandacare_mobile/features/auth/domain/auth_session.dart';
 import 'package:mandacare_mobile/features/consultations/domain/consultation_decision.dart';
+import 'package:mandacare_mobile/features/patients/domain/pharmacy_item.dart';
+import 'package:mandacare_mobile/features/patients/domain/daily_report.dart';
+import 'package:mandacare_mobile/features/patients/domain/support_ticket.dart';
 import 'package:mandacare_mobile/features/consultations/domain/create_consultation_payload.dart';
 import 'package:mandacare_mobile/features/consultations/domain/prescription.dart';
 import 'package:mandacare_mobile/features/dashboard/domain/dashboard_today_summary.dart';
@@ -1079,6 +1082,110 @@ class FakePatientGateway implements PatientGateway {
       status: status,
       priority: patient.priority,
     );
+  }
+
+  // Stock Pharmacie (Simulation)
+  final List<PharmacyItem> _pharmacyItems = [
+    const PharmacyItem(id: '1', code: 'PARACET500', label: 'Paracétamol', dosage: '500mg', price: 500.00, stockQuantity: 50, alertThreshold: 10, critical: false),
+    const PharmacyItem(id: '2', code: 'AMOXICILLIN', label: 'Amoxicilline', dosage: '1g', price: 1500.00, stockQuantity: 3, alertThreshold: 5, critical: true),
+    const PharmacyItem(id: '3', code: 'IBUPROFEN', label: 'Ibuprofène', dosage: '400mg', price: 800.00, stockQuantity: 20, alertThreshold: 5, critical: false),
+  ];
+
+  @override
+  Future<List<PharmacyItem>> getPharmacyItems({required AuthSession session}) async {
+    return _pharmacyItems;
+  }
+
+  @override
+  Future<PharmacyItem> adjustPharmacyStock({
+    required AuthSession session,
+    required String id,
+    required int quantity,
+    required String reason,
+  }) async {
+    final idx = _pharmacyItems.indexWhere((item) => item.id == id);
+    if (idx != -1) {
+      final old = _pharmacyItems[idx];
+      final newQty = old.stockQuantity + quantity;
+      final updated = PharmacyItem(
+        id: old.id,
+        code: old.code,
+        label: old.label,
+        dosage: old.dosage,
+        price: old.price,
+        stockQuantity: newQty < 0 ? 0 : newQty,
+        alertThreshold: old.alertThreshold,
+        critical: (newQty < 0 ? 0 : newQty) <= old.alertThreshold,
+      );
+      _pharmacyItems[idx] = updated;
+      return updated;
+    }
+    throw Exception("Not found");
+  }
+
+  @override
+  Future<PharmacyItem> createPharmacyItem({
+    required AuthSession session,
+    required String code,
+    required String label,
+    required String? dosage,
+    required double price,
+    required int alertThreshold,
+  }) async {
+    final newItem = PharmacyItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      code: code,
+      label: label,
+      dosage: dosage,
+      price: price,
+      stockQuantity: 0,
+      alertThreshold: alertThreshold,
+      critical: true,
+    );
+    _pharmacyItems.add(newItem);
+    return newItem;
+  }
+
+  // Rapports & Pilotage (Simulation)
+  @override
+  Future<DailyReport> getDailyReport({required AuthSession session}) async {
+    return const DailyReport(
+      totalPatientsToday: 15,
+      patientsByStatus: {'waiting': 5, 'inConsultation': 3, 'cashDesk': 2, 'lab': 3, 'released': 2},
+      revenueByPaymentMode: {'Espèces': 45000.0, 'Mobile Money': 25000.0},
+      totalRevenue: 70000.0,
+      topPrescribedExams: {'NFS': 8, 'Biochimie': 5, 'Parasitologie': 3},
+    );
+  }
+
+  // Support & Assistance (Simulation)
+  final List<SupportTicket> _supportTickets = [];
+
+  @override
+  Future<List<SupportTicket>> getMySupportTickets({required AuthSession session}) async {
+    return _supportTickets;
+  }
+
+  @override
+  Future<SupportTicket> createSupportTicket({
+    required AuthSession session,
+    required String subject,
+    required String description,
+    required String category,
+    required String priority,
+  }) async {
+    final ticket = SupportTicket(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      subject: subject,
+      description: description,
+      category: category,
+      priority: priority,
+      status: 'OPEN',
+      createdAt: DateTime.now(),
+      userId: 'test-user-id',
+    );
+    _supportTickets.add(ticket);
+    return ticket;
   }
 }
 

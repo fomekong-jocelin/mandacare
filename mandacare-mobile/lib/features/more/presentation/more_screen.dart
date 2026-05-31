@@ -9,8 +9,12 @@ import '../../tariff/data/tariff_gateway.dart';
 import '../../tariff/presentation/tariff_management_screen.dart';
 import '../../users/data/user_gateway.dart';
 import '../../users/presentation/user_management_screen.dart';
+import '../../patients/data/patient_gateway.dart';
+import '../../pharmacy/presentation/pharmacy_stock_screen.dart';
+import '../../dashboard/presentation/dashboard_report_screen.dart';
 import '../data/clinic_gateway.dart';
 import 'clinic_settings_screen.dart';
+import 'support_ticket_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({
@@ -18,6 +22,7 @@ class MoreScreen extends StatelessWidget {
     required this.userGateway,
     required this.tariffGateway,
     required this.clinicGateway,
+    required this.patientGateway,
     super.key,
   });
 
@@ -25,6 +30,7 @@ class MoreScreen extends StatelessWidget {
   final UserGateway userGateway;
   final TariffGateway tariffGateway;
   final ClinicGateway clinicGateway;
+  final PatientGateway patientGateway;
 
   @override
   Widget build(BuildContext context) {
@@ -57,15 +63,15 @@ class MoreScreen extends StatelessWidget {
                       ActionTile(
                         icon: Icons.local_pharmacy_rounded,
                         title: 'Stock pharmacie',
-                        subtitle: 'Module non raccordé',
-                        trailing: _UnavailableBadge(),
+                        subtitle: 'Gestion du catalogue et ajustements',
+                        onTap: () => _openPharmacy(context),
                       ),
                       const SizedBox(height: 10),
                       ActionTile(
                         icon: Icons.analytics_rounded,
                         title: 'Rapports',
-                        subtitle: 'Module non raccordé',
-                        trailing: _UnavailableBadge(),
+                        subtitle: 'Pilotage, recettes et statistiques',
+                        onTap: () => _openReports(context),
                       ),
                       const SizedBox(height: 10),
                       ActionTile(
@@ -108,8 +114,8 @@ class MoreScreen extends StatelessWidget {
                       ActionTile(
                         icon: Icons.help_outline_rounded,
                         title: 'Support',
-                        subtitle: 'Module non raccordé',
-                        trailing: _UnavailableBadge(),
+                        subtitle: 'Assistance technique et tickets',
+                        onTap: () => _openSupport(context),
                       ),
                     ],
                   ),
@@ -148,6 +154,39 @@ class MoreScreen extends StatelessWidget {
         builder: (_) => ClinicSettingsScreen(
           session: session,
           clinicGateway: clinicGateway,
+        ),
+      ),
+    );
+  }
+
+  void _openPharmacy(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PharmacyStockScreen(
+          session: session,
+          patientGateway: patientGateway,
+        ),
+      ),
+    );
+  }
+
+  void _openReports(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DashboardReportScreen(
+          session: session,
+          patientGateway: patientGateway,
+        ),
+      ),
+    );
+  }
+
+  void _openSupport(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SupportTicketScreen(
+          session: session,
+          patientGateway: patientGateway,
         ),
       ),
     );

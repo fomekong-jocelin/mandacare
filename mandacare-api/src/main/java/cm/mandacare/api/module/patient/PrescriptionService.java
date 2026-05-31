@@ -17,19 +17,22 @@ class PrescriptionService {
     private final PrescriptionNumberGenerator numberGenerator;
     private final PrescriptionMapper mapper;
     private final JdbcTemplate jdbcTemplate;
+    private final PharmacyService pharmacyService;
 
     PrescriptionService(
             PrescriptionRepository prescriptions,
             ConsultationRepository consultations,
             PrescriptionNumberGenerator numberGenerator,
             PrescriptionMapper mapper,
-            JdbcTemplate jdbcTemplate
+            JdbcTemplate jdbcTemplate,
+            PharmacyService pharmacyService
     ) {
         this.prescriptions = prescriptions;
         this.consultations = consultations;
         this.numberGenerator = numberGenerator;
         this.mapper = mapper;
         this.jdbcTemplate = jdbcTemplate;
+        this.pharmacyService = pharmacyService;
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +79,8 @@ class PrescriptionService {
                         }
                     }
 
+                    boolean isValidating = existing.status() == PrescriptionStatus.DRAFT && nextStatus == PrescriptionStatus.VALIDATED;
+
                     existing.updateStatus(nextStatus);
                     existing.items().clear();
                     if (request.items() != null) {
@@ -88,10 +93,14 @@ class PrescriptionService {
                                     itemReq.duration(),
                                     itemReq.quantity(),
                                     itemReq.instructions()
-                            ));
+                             ));
                         }
                     }
-                    return prescriptions.save(existing);
+                    PrescriptionEntity saved = prescriptions.save(existing);
+                    if (isValidating) {
+                        pharmacyService.deductStockForPrescription(saved);
+                    }
+                    return saved;
                 })
                 .orElseGet(() -> {
                     String prescriptionNumber = numberGenerator.next();
@@ -116,7 +125,11 @@ class PrescriptionService {
                             ));
                         }
                     }
-                    return prescriptions.save(newPrescription);
+                    PrescriptionEntity saved = prescriptions.save(newPrescription);
+                    if (nextStatus == PrescriptionStatus.VALIDATED) {
+                        pharmacyService.deductStockForPrescription(saved);
+                    }
+                    return saved;
                 });
 
         return mapper.toResponse(prescription);

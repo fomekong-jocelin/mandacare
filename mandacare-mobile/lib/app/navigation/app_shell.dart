@@ -81,6 +81,7 @@ class _AppShellState extends State<AppShell> {
           userGateway: widget.userGateway,
           tariffGateway: widget.tariffGateway,
           clinicGateway: widget.clinicGateway,
+          patientGateway: widget.patientGateway,
         ),
       ],
     );

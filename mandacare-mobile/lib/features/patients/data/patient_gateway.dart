@@ -11,6 +11,9 @@ import '../../cashdesk/domain/invoice.dart';
 import '../../consultations/domain/exam.dart';
 import '../domain/patient_timeline_item.dart';
 import '../domain/vitals_summary.dart';
+import '../domain/pharmacy_item.dart';
+import '../domain/daily_report.dart';
+import '../domain/support_ticket.dart';
 
 abstract class PatientGateway {
   Future<List<PatientSummary>> listPatients({
@@ -102,6 +105,36 @@ abstract class PatientGateway {
   Future<List<Invoice>> getInvoices({
     required AuthSession session,
     required String visitId,
+  });
+
+  // Stock Pharmacie
+  Future<List<PharmacyItem>> getPharmacyItems({required AuthSession session});
+  Future<PharmacyItem> adjustPharmacyStock({
+    required AuthSession session,
+    required String id,
+    required int quantity,
+    required String reason,
+  });
+  Future<PharmacyItem> createPharmacyItem({
+    required AuthSession session,
+    required String code,
+    required String label,
+    required String? dosage,
+    required double price,
+    required int alertThreshold,
+  });
+
+  // Rapports & Pilotage
+  Future<DailyReport> getDailyReport({required AuthSession session});
+
+  // Support & Assistance
+  Future<List<SupportTicket>> getMySupportTickets({required AuthSession session});
+  Future<SupportTicket> createSupportTicket({
+    required AuthSession session,
+    required String subject,
+    required String description,
+    required String category,
+    required String priority,
   });
 }
 
@@ -353,6 +386,101 @@ class BackendPatientGateway implements PatientGateway {
         .whereType<Map<String, dynamic>>()
         .map(Invoice.fromJson)
         .toList(growable: false);
+  }
+
+  @override
+  Future<List<PharmacyItem>> getPharmacyItems({required AuthSession session}) async {
+    final response = await apiClient.getJsonList(
+      '/pharmacy',
+      token: session.accessToken,
+    );
+    return response
+        .whereType<Map<String, dynamic>>()
+        .map(PharmacyItem.fromJson)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<PharmacyItem> adjustPharmacyStock({
+    required AuthSession session,
+    required String id,
+    required int quantity,
+    required String reason,
+  }) async {
+    final response = await apiClient.postJson(
+      '/pharmacy/$id/stock',
+      {
+        'quantity': quantity,
+        'reason': reason,
+      },
+      token: session.accessToken,
+    );
+    return PharmacyItem.fromJson(response);
+  }
+
+  @override
+  Future<PharmacyItem> createPharmacyItem({
+    required AuthSession session,
+    required String code,
+    required String label,
+    required String? dosage,
+    required double price,
+    required int alertThreshold,
+  }) async {
+    final response = await apiClient.postJson(
+      '/pharmacy',
+      {
+        'code': code,
+        'label': label,
+        'dosage': dosage,
+        'price': price,
+        'alertThreshold': alertThreshold,
+      },
+      token: session.accessToken,
+    );
+    return PharmacyItem.fromJson(response);
+  }
+
+  @override
+  Future<DailyReport> getDailyReport({required AuthSession session}) async {
+    final response = await apiClient.getJson(
+      '/reports/daily',
+      token: session.accessToken,
+    );
+    return DailyReport.fromJson(response);
+  }
+
+  @override
+  Future<List<SupportTicket>> getMySupportTickets({required AuthSession session}) async {
+    final response = await apiClient.getJsonList(
+      '/support/tickets/mine',
+      token: session.accessToken,
+    );
+    return response
+        .whereType<Map<String, dynamic>>()
+        .map(SupportTicket.fromJson)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<SupportTicket> createSupportTicket({
+    required AuthSession session,
+    required String subject,
+    required String description,
+    required String category,
+    required String priority,
+  }) async {
+    final response = await apiClient.postJson(
+      '/support/tickets',
+      {
+        'subject': subject,
+        'description': description,
+        'category': category,
+        'priority': priority,
+      },
+      token: session.accessToken,
+    );
+    return SupportTicket.fromJson(response);
   }
 }
 
