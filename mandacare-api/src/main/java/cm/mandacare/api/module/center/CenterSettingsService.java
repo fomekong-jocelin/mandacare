@@ -5,20 +5,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class CenterSettingsService {
+public class CenterSettingsService {
 
     private static final int CENTER_SETTINGS_ID = 1;
 
     private final JdbcTemplate jdbcTemplate;
     private final CenterSettingsProperties properties;
 
-    CenterSettingsService(JdbcTemplate jdbcTemplate, CenterSettingsProperties properties) {
+    public CenterSettingsService(JdbcTemplate jdbcTemplate, CenterSettingsProperties properties) {
         this.jdbcTemplate = jdbcTemplate;
         this.properties = properties;
     }
 
     @Transactional(readOnly = true)
-    CenterSettingsResponse currentSettings() {
+    public CenterSettingsResponse currentSettings() {
         return jdbcTemplate.query(
                 """
                 SELECT name, slogan, phone, email, city, address, po_box, rccm, taxpayer_number

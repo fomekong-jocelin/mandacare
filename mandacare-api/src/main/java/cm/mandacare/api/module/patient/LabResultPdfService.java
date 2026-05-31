@@ -9,6 +9,7 @@ import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
 import com.lowagie.text.Rectangle;
+import com.lowagie.text.pdf.ColumnText;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPCellEvent;
 import com.lowagie.text.pdf.PdfContentByte;
@@ -23,9 +24,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
+import cm.mandacare.api.module.center.CenterSettingsService;
+import cm.mandacare.api.module.center.CenterSettingsResponse;
 
 @Service
 class LabResultPdfService {
+
+    private final CenterSettingsService centerSettingsService;
+
+    LabResultPdfService(CenterSettingsService centerSettingsService) {
+        this.centerSettingsService = centerSettingsService;
+    }
 
     private static final Color DEEP_HEALTH_BLUE = new Color(11, 59, 96);
     private static final Color MEDICAL_GREEN = new Color(46, 125, 50);
@@ -40,12 +49,13 @@ class LabResultPdfService {
             .withZone(ZoneId.systemDefault());
 
     byte[] generatePdf(LabResultEntity labResult) {
+        final CenterSettingsResponse settings = centerSettingsService.currentSettings();
         Document document = new Document(PageSize.A4, 40, 40, 40, 54);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         try {
             PdfWriter writer = PdfWriter.getInstance(document, out);
-            writer.setPageEvent(new FooterEvent());
+            writer.setPageEvent(new FooterEvent(settings));
             document.open();
 
             document.add(headerTable());
@@ -405,6 +415,12 @@ class LabResultPdfService {
     }
 
     private static class FooterEvent extends PdfPageEventHelper {
+        private final CenterSettingsResponse settings;
+
+        FooterEvent(CenterSettingsResponse settings) {
+            this.settings = settings;
+        }
+
         @Override
         public void onEndPage(PdfWriter writer, Document document) {
             PdfContentByte cb = writer.getDirectContent();
@@ -422,6 +438,21 @@ class LabResultPdfService {
             cb.lineTo(width, 0);
             cb.lineTo(width * 0.45f, 0);
             cb.fill();
+
+            // 4. Draw Legal Footer Text (RCCM, NIU, BP, etc.) centered above waves
+            StringBuilder sb = new StringBuilder();
+            sb.append(settings.name() != null ? settings.name() : "MandaCare");
+            if (settings.address() != null) sb.append(" - ").append(settings.address());
+            else if (settings.city() != null) sb.append(" - ").append(settings.city());
+            if (settings.phone() != null) sb.append(" - Tél : ").append(settings.phone());
+            if (settings.email() != null) sb.append(" - Email : ").append(settings.email());
+            if (settings.poBox() != null) sb.append(" - BP : ").append(settings.poBox());
+            if (settings.rccm() != null) sb.append(" - RCCM : ").append(settings.rccm());
+            if (settings.taxpayerNumber() != null) sb.append(" - NIU : ").append(settings.taxpayerNumber());
+
+            Font footerFont = new Font(Font.HELVETICA, 7.5f, Font.NORMAL, MUTED_TEXT);
+            ColumnText.showTextAligned(cb, Element.ALIGN_CENTER, new Phrase(sb.toString(), footerFont), width / 2, 34, 0);
+
             cb.restoreState();
         }
     }

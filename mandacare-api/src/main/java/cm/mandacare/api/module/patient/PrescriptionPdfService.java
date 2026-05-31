@@ -4,6 +4,8 @@ import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.pdf.*;
 import org.springframework.stereotype.Service;
+import cm.mandacare.api.module.center.CenterSettingsService;
+import cm.mandacare.api.module.center.CenterSettingsResponse;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
@@ -12,6 +14,12 @@ import java.time.format.DateTimeFormatter;
 
 @Service
 class PrescriptionPdfService {
+
+    private final CenterSettingsService centerSettingsService;
+
+    PrescriptionPdfService(CenterSettingsService centerSettingsService) {
+        this.centerSettingsService = centerSettingsService;
+    }
 
     private static final Color DEEP_HEALTH_BLUE = new Color(11, 59, 96);
     private static final Color MEDICAL_GREEN = new Color(46, 125, 50);
@@ -23,6 +31,7 @@ class PrescriptionPdfService {
             .withZone(ZoneId.systemDefault());
 
     public byte[] generatePdf(PrescriptionEntity prescription) {
+        final CenterSettingsResponse settings = centerSettingsService.currentSettings();
         Document document = new Document(PageSize.A4, 40, 40, 40, 54);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
@@ -68,6 +77,20 @@ class PrescriptionPdfService {
                     cb.moveTo(lx, ly);
                     cb.lineTo(lx + 12, ly + 25);
                     cb.stroke();
+
+                    // 4. Draw Legal Footer Text (RCCM, NIU, BP, etc.) centered above waves
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(settings.name() != null ? settings.name() : "MandaCare");
+                    if (settings.address() != null) sb.append(" - ").append(settings.address());
+                    else if (settings.city() != null) sb.append(" - ").append(settings.city());
+                    if (settings.phone() != null) sb.append(" - Tél : ").append(settings.phone());
+                    if (settings.email() != null) sb.append(" - Email : ").append(settings.email());
+                    if (settings.poBox() != null) sb.append(" - BP : ").append(settings.poBox());
+                    if (settings.rccm() != null) sb.append(" - RCCM : ").append(settings.rccm());
+                    if (settings.taxpayerNumber() != null) sb.append(" - NIU : ").append(settings.taxpayerNumber());
+
+                    Font footerFont = new Font(Font.HELVETICA, 7.5f, Font.NORMAL, MUTED_TEXT);
+                    ColumnText.showTextAligned(cb, Element.ALIGN_CENTER, new Phrase(sb.toString(), footerFont), width / 2, 34, 0);
                     
                     cb.restoreState();
                 }
