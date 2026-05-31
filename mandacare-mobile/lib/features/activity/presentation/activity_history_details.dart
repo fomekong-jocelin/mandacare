@@ -28,7 +28,7 @@ void _showConsultationDetails(
       ]),
     ],
     documents: [
-      if (session != null && apiClient != null)
+      if (item.hasPrescription && session != null && apiClient != null)
         _ActivityDocument(
           title: 'Ordonnance',
           subtitle: 'PDF consultation',

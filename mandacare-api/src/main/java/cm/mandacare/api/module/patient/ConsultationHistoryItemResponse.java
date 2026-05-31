@@ -13,6 +13,7 @@ public record ConsultationHistoryItemResponse(
         String diagnosis,
         ConsultationStatus status,
         ConsultationDecision decision,
+        boolean hasPrescription,
         Instant createdAt,
         Instant validatedAt
 ) {

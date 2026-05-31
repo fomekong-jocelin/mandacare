@@ -28,7 +28,12 @@ class ActivityHistoryService {
                 select c.id, c.visit_id, c.patient_id, p.patient_number,
                        concat(p.first_name, ' ', p.last_name) as patient_name,
                        c.reason, coalesce(c.final_diagnosis, c.provisional_diagnosis, '') as diagnosis,
-                       c.status, c.decision, c.created_at, c.validated_at
+                       c.status, c.decision, c.created_at, c.validated_at,
+                       exists (
+                           select 1
+                           from prescriptions pr
+                           where pr.consultation_id = c.id
+                       ) as has_prescription
                 from consultations c
                 join patients p on p.id = c.patient_id
                 where c.created_at >= ? and c.created_at < ?
@@ -45,6 +50,7 @@ class ActivityHistoryService {
                         rs.getString("diagnosis"),
                         ConsultationStatus.valueOf(rs.getString("status")),
                         ConsultationDecision.valueOf(rs.getString("decision")),
+                        rs.getBoolean("has_prescription"),
                         rs.getTimestamp("created_at").toInstant(),
                         timestampToInstant(rs.getTimestamp("validated_at"))
                 ),

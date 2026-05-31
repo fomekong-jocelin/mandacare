@@ -43,6 +43,7 @@ class ConsultationHistoryItem {
     required this.diagnosis,
     required this.status,
     required this.decision,
+    required this.hasPrescription,
     required this.createdAt,
   });
 
@@ -55,6 +56,7 @@ class ConsultationHistoryItem {
   final String diagnosis;
   final String status;
   final String decision;
+  final bool hasPrescription;
   final DateTime createdAt;
 }
 

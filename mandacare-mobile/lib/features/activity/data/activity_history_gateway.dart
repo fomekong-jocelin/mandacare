@@ -72,6 +72,7 @@ class BackendActivityHistoryGateway implements ActivityHistoryGateway {
       ),
       status: _string(json['status']),
       decision: _string(json['decision']),
+      hasPrescription: _bool(json['hasPrescription']),
       createdAt: _dateTime(json['createdAt']),
     );
   }
@@ -137,6 +138,16 @@ double _double(Object? value) {
     return double.tryParse(value) ?? 0;
   }
   return 0;
+}
+
+bool _bool(Object? value) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is String) {
+    return value.toLowerCase() == 'true';
+  }
+  return false;
 }
 
 DateTime _dateTime(Object? value) {
