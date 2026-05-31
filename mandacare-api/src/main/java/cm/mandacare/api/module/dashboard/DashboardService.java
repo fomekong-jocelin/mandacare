@@ -20,7 +20,8 @@ class DashboardService {
     }
 
     DashboardTodayResponse today() {
-        Instant start = LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant();
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        Instant start = LocalDate.now(clock.withZone(zone)).atStartOfDay(zone).toInstant();
         Instant end = start.plusSeconds(24 * 60 * 60);
 
         return new DashboardTodayResponse(

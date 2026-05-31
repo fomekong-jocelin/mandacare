@@ -101,7 +101,8 @@ class PatientService {
 
     @Transactional(readOnly = true)
     List<PatientResponse> todayQueue(int limit, VisitStatus status) {
-        Instant start = LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant();
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        Instant start = LocalDate.now(clock.withZone(zone)).atStartOfDay(zone).toInstant();
         Instant end = start.plusSeconds(24 * 60 * 60);
         return visits.findTodayQueue(start, end, VisitStatus.RELEASED, status, PageRequest.of(0, limit))
                 .stream()
