@@ -58,10 +58,10 @@ class _HeroSummary extends StatelessWidget {
           Text(
             value,
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            overflow: TextOverflow.visible,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               color: AppColors.deepHealthBlue,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w600,
               height: 1.08,
             ),
@@ -114,73 +114,63 @@ class _HeroChip extends StatelessWidget {
   }
 }
 
-class _MetricGrid extends StatelessWidget {
-  const _MetricGrid({required this.items, required this.accent});
+class _MetricList extends StatelessWidget {
+  const _MetricList({required this.items});
 
   final List<_MetricInfo> items;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width =
-            (constraints.maxWidth - ((items.length - 1) * 8)) / items.length;
-        return Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final item in items)
-              SizedBox(
-                width: width.clamp(104, constraints.maxWidth),
-                child: _MetricPill(item: item, accent: accent),
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _MetricPill extends StatelessWidget {
-  const _MetricPill({required this.item, required this.accent});
-
-  final _MetricInfo item;
-  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 62),
-      padding: const EdgeInsets.fromLTRB(11, 10, 11, 9),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.border.withValues(alpha: 0.34)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            item.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w400,
+          for (final item in items)
+            _CompactMetricRow(label: item.label, value: item.value),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactMetricRow extends StatelessWidget {
+  const _CompactMetricRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            item.value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 12),
+          Flexible(
+            flex: 2,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              softWrap: true,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -216,7 +206,7 @@ class _DetailSectionCard extends StatelessWidget {
                 section.title,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: AppColors.deepHealthBlue,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -243,12 +233,12 @@ class _DetailField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: 118,
             child: Text(
               row.label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.textSecondary,
-                fontSize: 13.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w400,
               ),
             ),
@@ -259,7 +249,7 @@ class _DetailField extends StatelessWidget {
               row.value,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: AppColors.textPrimary,
-                fontSize: 14.5,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 height: 1.18,
               ),
@@ -306,7 +296,7 @@ class _DocumentSection extends StatelessWidget {
                 'Documents',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: AppColors.deepHealthBlue,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),

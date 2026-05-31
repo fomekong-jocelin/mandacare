@@ -16,10 +16,7 @@ void _showConsultationDetails(
     heroValue: item.diagnosis,
     heroMeta: item.reason,
     chips: [_statusLabel(item.status), _statusLabel(item.decision)],
-    metrics: [
-      _MetricInfo('Patient', item.patientNumber),
-      _MetricInfo('Date', _formatDateTime(item.createdAt)),
-    ],
+    metrics: const [],
     sections: [
       _DetailSection('Dossier clinique', Icons.assignment_rounded, [
         _DetailRow('Motif', item.reason),
@@ -64,11 +61,7 @@ void _showCashDeskDetails(
     heroValue: remaining,
     heroMeta: '${_formatAmount(item.paidAmount)} FCFA encaissé',
     chips: [_statusLabel(item.status)],
-    metrics: [
-      _MetricInfo('Net', '${_formatAmount(item.netAmount)} FCFA'),
-      _MetricInfo('Encaissé', '${_formatAmount(item.paidAmount)} FCFA'),
-      _MetricInfo('Reste', remaining),
-    ],
+    metrics: const [],
     sections: [
       _DetailSection('Paiement', Icons.payments_rounded, [
         _DetailRow('Net à payer', '${_formatAmount(item.netAmount)} FCFA'),
@@ -192,9 +185,11 @@ class _ActivityDetailSheet extends StatelessWidget {
                       meta: heroMeta,
                       chips: chips,
                     ),
-                    const SizedBox(height: 12),
-                    _MetricGrid(items: metrics, accent: accent),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
+                    if (metrics.isNotEmpty) ...[
+                      _MetricList(items: metrics),
+                      const SizedBox(height: 10),
+                    ],
                     for (final section in sections) ...[
                       _DetailSectionCard(section: section, accent: accent),
                       const SizedBox(height: 10),
@@ -278,8 +273,8 @@ class _PremiumHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: AppColors.deepHealthBlue,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
                     height: 1.08,
                   ),
                 ),
