@@ -4,134 +4,235 @@ void _showConsultationDetails(
   BuildContext context,
   ConsultationHistoryItem item,
 ) {
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => _ActivityDetailScreen(
-        title: item.patientName,
-        subtitle: '${item.patientNumber} · ${_formatDateTime(item.createdAt)}',
-        icon: Icons.medical_services_rounded,
-        sections: [
-          _DetailSection('Consultation', [
-            _DetailRow('Motif', item.reason),
-            _DetailRow('Diagnostic', item.diagnosis),
-          ]),
-          _DetailSection('Orientation', [
-            _DetailRow('Statut', _statusLabel(item.status)),
-            _DetailRow('Décision', _statusLabel(item.decision)),
-          ]),
-        ],
-      ),
-    ),
+  _showActivityDetails(
+    context,
+    title: item.patientName,
+    subtitle: '${item.patientNumber} · ${_formatDateTime(item.createdAt)}',
+    icon: Icons.medical_services_rounded,
+    accent: AppColors.medicalGreen,
+    heroLabel: 'Diagnostic',
+    heroValue: item.diagnosis,
+    heroMeta: item.reason,
+    chips: [_statusLabel(item.status), _statusLabel(item.decision)],
+    metrics: [
+      _MetricInfo('Patient', item.patientNumber),
+      _MetricInfo('Date', _formatDateTime(item.createdAt)),
+    ],
+    sections: [
+      _DetailSection('Dossier clinique', Icons.assignment_rounded, [
+        _DetailRow('Motif', item.reason),
+        _DetailRow('Diagnostic', item.diagnosis),
+      ]),
+      _DetailSection('Parcours', Icons.route_rounded, [
+        _DetailRow('Statut', _statusLabel(item.status)),
+        _DetailRow('Décision', _statusLabel(item.decision)),
+      ]),
+    ],
   );
 }
 
 void _showCashDeskDetails(BuildContext context, CashDeskHistoryItem item) {
-  Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => _ActivityDetailScreen(
-        title: item.patientName,
-        subtitle: '${item.invoiceNumber} · ${_formatDateTime(item.createdAt)}',
-        icon: Icons.receipt_long_rounded,
-        sections: [
-          _DetailSection('Paiement', [
-            _DetailRow('Net à payer', '${_formatAmount(item.netAmount)} FCFA'),
-            _DetailRow('Encaissé', '${_formatAmount(item.paidAmount)} FCFA'),
-            _DetailRow('Reste', '${_formatAmount(item.remainingAmount)} FCFA'),
-          ]),
-          _DetailSection('Facture', [
-            _DetailRow('Statut', _statusLabel(item.status)),
-            _DetailRow('Numéro', item.invoiceNumber),
-          ]),
-        ],
+  final remaining = item.remainingAmount > 0
+      ? '${_formatAmount(item.remainingAmount)} FCFA'
+      : 'Soldé';
+  _showActivityDetails(
+    context,
+    title: item.patientName,
+    subtitle: '${item.invoiceNumber} · ${_formatDateTime(item.createdAt)}',
+    icon: Icons.receipt_long_rounded,
+    accent: AppColors.premiumGold,
+    heroLabel: 'Reste à payer',
+    heroValue: remaining,
+    heroMeta: '${_formatAmount(item.paidAmount)} FCFA encaissé',
+    chips: [_statusLabel(item.status)],
+    metrics: [
+      _MetricInfo('Net', '${_formatAmount(item.netAmount)} FCFA'),
+      _MetricInfo('Encaissé', '${_formatAmount(item.paidAmount)} FCFA'),
+      _MetricInfo('Reste', remaining),
+    ],
+    sections: [
+      _DetailSection('Paiement', Icons.payments_rounded, [
+        _DetailRow('Net à payer', '${_formatAmount(item.netAmount)} FCFA'),
+        _DetailRow(
+          'Montant encaissé',
+          '${_formatAmount(item.paidAmount)} FCFA',
+        ),
+        _DetailRow('Reste à payer', remaining),
+      ]),
+      _DetailSection('Facture', Icons.description_rounded, [
+        _DetailRow('Statut', _statusLabel(item.status)),
+        _DetailRow('Numéro', item.invoiceNumber),
+        _DetailRow('Date', _formatDateTime(item.createdAt)),
+      ]),
+    ],
+  );
+}
+
+void _showActivityDetails(
+  BuildContext context, {
+  required String title,
+  required String subtitle,
+  required IconData icon,
+  required Color accent,
+  required String heroLabel,
+  required String heroValue,
+  required String heroMeta,
+  required List<String> chips,
+  required List<_MetricInfo> metrics,
+  required List<_DetailSection> sections,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => FractionallySizedBox(
+      heightFactor: 0.88,
+      child: _ActivityDetailSheet(
+        title: title,
+        subtitle: subtitle,
+        icon: icon,
+        accent: accent,
+        heroLabel: heroLabel,
+        heroValue: heroValue,
+        heroMeta: heroMeta,
+        chips: chips,
+        metrics: metrics,
+        sections: sections,
       ),
     ),
   );
 }
 
-class _ActivityDetailScreen extends StatelessWidget {
-  const _ActivityDetailScreen({
+class _ActivityDetailSheet extends StatelessWidget {
+  const _ActivityDetailSheet({
     required this.title,
     required this.subtitle,
     required this.icon,
+    required this.accent,
+    required this.heroLabel,
+    required this.heroValue,
+    required this.heroMeta,
+    required this.chips,
+    required this.metrics,
     required this.sections,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
+  final Color accent;
+  final String heroLabel;
+  final String heroValue;
+  final String heroMeta;
+  final List<String> chips;
+  final List<_MetricInfo> metrics;
   final List<_DetailSection> sections;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: _DetailHeader(
-                title: title,
-                subtitle: subtitle,
-                icon: icon,
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+      child: Material(
+        color: AppColors.lightBackground,
+        child: SafeArea(
+          top: false,
+          child: CustomScrollView(
+            slivers: [
+              const SliverToBoxAdapter(child: _SheetHandle()),
+              SliverToBoxAdapter(
+                child: _PremiumHeader(
+                  title: title,
+                  subtitle: subtitle,
+                  icon: icon,
+                  accent: accent,
+                ),
               ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              sliver: SliverList.list(
-                children: [
-                  for (final section in sections) ...[
-                    _DetailSectionCard(section: section),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                sliver: SliverList.list(
+                  children: [
+                    _HeroSummary(
+                      accent: accent,
+                      label: heroLabel,
+                      value: heroValue,
+                      meta: heroMeta,
+                      chips: chips,
+                    ),
                     const SizedBox(height: 12),
+                    _MetricGrid(items: metrics, accent: accent),
+                    const SizedBox(height: 14),
+                    for (final section in sections) ...[
+                      _DetailSectionCard(section: section, accent: accent),
+                      const SizedBox(height: 12),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _DetailHeader extends StatelessWidget {
-  const _DetailHeader({
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 54,
+        height: 5,
+        margin: const EdgeInsets.only(top: 12, bottom: 8),
+        decoration: BoxDecoration(
+          color: AppColors.border,
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+    );
+  }
+}
+
+class _PremiumHeader extends StatelessWidget {
+  const _PremiumHeader({
     required this.title,
     required this.subtitle,
     required this.icon,
+    required this.accent,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 10, 16, 16),
+      padding: const EdgeInsets.fromLTRB(8, 10, 16, 18),
       decoration: BoxDecoration(
-        color: AppColors.lightBackground.withValues(alpha: 0.98),
+        color: AppColors.lightBackground,
         boxShadow: [
           BoxShadow(
-            color: AppColors.deepHealthBlue.withValues(alpha: 0.035),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
+            color: AppColors.deepHealthBlue.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_rounded),
-          ),
           Container(
-            width: 44,
-            height: 44,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: AppColors.medicalGreen.withValues(alpha: 0.10),
+              color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: accent.withValues(alpha: 0.18)),
             ),
-            child: Icon(icon, color: AppColors.medicalGreen),
+            child: Icon(icon, color: accent, size: 25),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -142,107 +243,34 @@ class _DetailHeader extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: AppColors.deepHealthBlue,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailSectionCard extends StatelessWidget {
-  const _DetailSectionCard({required this.section});
-
-  final _DetailSection section;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.55)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            section.title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColors.deepHealthBlue,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 10),
-          for (final row in section.rows) _DetailField(row: row),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailField extends StatelessWidget {
-  const _DetailField({required this.row});
-
-  final _DetailRow row;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            row.label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            row.value,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close_rounded),
           ),
         ],
       ),
     );
   }
-}
-
-class _DetailSection {
-  const _DetailSection(this.title, this.rows);
-
-  final String title;
-  final List<_DetailRow> rows;
-}
-
-class _DetailRow {
-  const _DetailRow(this.label, this.value);
-
-  final String label;
-  final String value;
 }
 
 String _formatDateTime(DateTime value) {

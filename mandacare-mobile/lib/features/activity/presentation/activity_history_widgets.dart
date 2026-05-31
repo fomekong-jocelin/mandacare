@@ -4,6 +4,7 @@ import '../../../app/theme/app_colors.dart';
 import '../domain/activity_history_item.dart';
 
 part 'activity_history_details.dart';
+part 'activity_history_detail_components.dart';
 
 const activityAllStatuses = '__all__';
 
